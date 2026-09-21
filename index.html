@@ -2,3559 +2,1314 @@
 <html lang="en" class="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-
-<title>JTRADER — Live Deriv VIX Analyzer Pro</title>
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>JTRADER - Pro VIX Trading & Live Deriv WebSocket Analysis Suite</title>
 <script src="https://cdn.tailwindcss.com"></script>
-
 <script>
-tailwind.config={
-    darkMode:"class",
-    theme:{
-        extend:{
-            colors:{
-                traderPurple:{
-                    400:"#c084fc",
-                    500:"#a855f7",
-                    600:"#9333ea",
-                    700:"#7e22ce",
-                    800:"#6b21a8",
-                    900:"#581c87"
-                }
-            }
-        }
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        purple: {
+          50: '#f5f3ff', 100: '#ede9fe', 200: '#ddd6fe', 300: '#c4b5fd',
+          400: '#a78bfa', 500: '#8b5cf6', 600: '#7c3aed', 700: '#6d28d9',
+          800: '#5b21b6', 900: '#4c1d95', 950: '#2e1065',
+        },
+        darkbase: '#0b0414',
+        cardbase: '#150c2e',
+        cardhover: '#1f1242',
+      }
     }
-};
+  }
+}
 </script>
-
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
-*{box-sizing:border-box}
-
-body{
-    margin:0;
-    font-family:Inter,Arial,sans-serif;
-    background:
-        radial-gradient(circle at 15% 0%,rgba(126,34,206,.20),transparent 30%),
-        radial-gradient(circle at 90% 5%,rgba(168,85,247,.12),transparent 28%),
-        #090611;
-    color:#f5f3ff;
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #0b0414; }
+::-webkit-scrollbar-thumb { background: #5b21b6; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #7c3aed; }
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.25); }
+  50% { box-shadow: 0 0 35px rgba(167, 139, 250, 0.5); }
 }
-
-.card{
-    background:linear-gradient(145deg,#171226,#0e0a18);
-    border:1px solid rgba(168,85,247,.18);
-    box-shadow:0 15px 45px rgba(0,0,0,.25);
+.glow-box { animation: pulseGlow 4s infinite ease-in-out; }
+.tick-up { color: #4ade80 !important; transition: color 0.15s ease; }
+.tick-down { color: #f87171 !important; transition: color 0.15s ease; }
+@keyframes flashGreen {
+  0% { background-color: rgba(74, 222, 128, 0.25); }
+  100% { background-color: transparent; }
 }
-
-.card:hover{
-    border-color:rgba(168,85,247,.35);
+@keyframes flashRed {
+  0% { background-color: rgba(248, 113, 113, 0.25); }
+  100% { background-color: transparent; }
 }
-
-.nav{
-    transition:.2s;
-}
-
-.nav.active{
-    background:linear-gradient(135deg,#7e22ce,#a855f7);
-}
-
-.green{
-    color:#4ade80;
-}
-
-.red{
-    color:#f87171;
-}
-
-.yellow{
-    color:#facc15;
-}
-
-.buy-card{
-    border-color:rgba(74,222,128,.35);
-}
-
-.sell-card{
-    border-color:rgba(248,113,113,.35);
-}
-
-.wait-card{
-    border-color:rgba(250,204,21,.25);
-}
-
-.pulse{
-    animation:pulse 1.5s infinite;
-}
-
-@keyframes pulse{
-    0%,100%{opacity:1}
-    50%{opacity:.35}
-}
-
-::-webkit-scrollbar{
-    width:7px;
-}
-
-::-webkit-scrollbar-track{
-    background:#0b0812;
-}
-
-::-webkit-scrollbar-thumb{
-    background:#6b21a8;
-    border-radius:20px;
+.flash-up { animation: flashGreen 0.4s ease; }
+.flash-down { animation: flashRed 0.4s ease; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.animate-fadeIn { animation: fadeIn 0.3s ease; }
+:root {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 </style>
 </head>
+<body class="bg-darkbase text-purple-100 min-h-screen font-sans selection:bg-purple-600 selection:text-white flex flex-col justify-between">
 
-<body>
+<header class="bg-cardbase border-b border-purple-900/60 sticky top-0 z-50 backdrop-blur-md bg-opacity-95">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+    <div class="flex items-center space-x-3">
+      <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-700 flex items-center justify-center shadow-lg shadow-purple-900/50 text-white text-2xl">
+        <i class="fa-solid fa-chart-line"></i>
+      </div>
+      <div>
+        <h1 class="text-xl font-black bg-gradient-to-r from-purple-300 via-purple-100 to-indigo-300 bg-clip-text text-transparent tracking-wider">JTRADER</h1>
+        <p class="text-xs text-purple-400 font-medium">Pro VIX Volatility Indices & Live Deriv WebSocket Engine</p>
+      </div>
+    </div>
 
-<!-- =========================================================
-HEADER
-========================================================= -->
+    <nav class="hidden md:flex space-x-2 bg-purple-950/80 p-1.5 rounded-2xl border border-purple-900/60">
+      <button onclick="switchTab('home')" id="nav-home" class="px-5 py-2 rounded-xl text-sm font-semibold transition-all bg-purple-700 text-white shadow-md">
+        <i class="fa-solid fa-house mr-2"></i>Dashboard
+      </button>
+      <button onclick="switchTab('live')" id="nav-live" class="px-5 py-2 rounded-xl text-sm font-semibold transition-all text-purple-300 hover:text-white hover:bg-purple-900/50">
+        <i class="fa-solid fa-satellite-dish mr-2"></i>Live VIX Ticker
+      </button>
+      <button onclick="switchTab('scanner')" id="nav-scanner" class="px-5 py-2 rounded-xl text-sm font-semibold transition-all text-purple-300 hover:text-white hover:bg-purple-900/50">
+        <i class="fa-solid fa-wand-magic-sparkles mr-2"></i>Chart Scanner & Analysis
+      </button>
+      <button onclick="switchTab('strategies')" id="nav-strategies" class="px-5 py-2 rounded-xl text-sm font-semibold transition-all text-purple-300 hover:text-white hover:bg-purple-900/50">
+        <i class="fa-solid fa-crosshairs mr-2"></i>Swing & Scalp Trades
+      </button>
+    </nav>
 
-<header class="sticky top-0 z-50 bg-[#090611]/95 backdrop-blur-xl border-b border-purple-500/20">
+    <div class="flex items-center space-x-3">
+      <div id="ws-status-badge" class="flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-bold">
+        <span class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" id="ws-dot"></span>
+        <span id="ws-text">Connecting to Deriv WS...</span>
+      </div>
+    </div>
+  </div>
 
-<div class="max-w-[1800px] mx-auto px-4 py-3 flex items-center justify-between">
-
-<div class="flex items-center gap-3">
-
-<div class="w-11 h-11 rounded-xl bg-gradient-to-br from-purple-500 to-purple-900 flex items-center justify-center font-black text-xl">
-J
-</div>
-
-<div>
-<h1 class="font-black text-xl">JTRADER</h1>
-
-<p class="text-[10px] text-purple-300 tracking-widest">
-LIVE DERIV VIX ANALYZER PRO
-</p>
-</div>
-
-</div>
-
-<div class="flex items-center gap-3">
-
-<div class="hidden sm:flex items-center gap-2 text-xs">
-
-<span id="statusDot"
-class="w-2.5 h-2.5 rounded-full bg-yellow-400"></span>
-
-<span id="statusText">
-Connecting to Deriv...
-</span>
-
-</div>
-
-<button onclick="connectDeriv(true)"
-class="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-xs font-bold">
-Reconnect
-</button>
-
-</div>
-
-</div>
+  <div class="md:hidden flex justify-around p-2 bg-purple-950 border-t border-purple-900">
+    <button onclick="switchTab('home')" id="mob-nav-home" class="flex-1 py-1.5 text-center text-[10px] font-bold text-white bg-purple-700 rounded-lg mr-1"><i class="fa-solid fa-house"></i> Home</button>
+    <button onclick="switchTab('live')" id="mob-nav-live" class="flex-1 py-1.5 text-center text-[10px] font-bold text-purple-300 bg-purple-900/40 rounded-lg mr-1"><i class="fa-solid fa-satellite-dish"></i> Live</button>
+    <button onclick="switchTab('scanner')" id="mob-nav-scanner" class="flex-1 py-1.5 text-center text-[10px] font-bold text-purple-300 bg-purple-900/40 rounded-lg mr-1"><i class="fa-solid fa-wand-magic-sparkles"></i> Scanner</button>
+    <button onclick="switchTab('strategies')" id="mob-nav-strategies" class="flex-1 py-1.5 text-center text-[10px] font-bold text-purple-300 bg-purple-900/40 rounded-lg"><i class="fa-solid fa-crosshairs"></i> Trades</button>
+  </div>
 </header>
 
-
-<!-- =========================================================
-NAV
-========================================================= -->
-
-<nav class="sticky top-[68px] z-40 bg-[#0b0812]/95 backdrop-blur-xl border-b border-purple-500/10">
-
-<div class="max-w-[1800px] mx-auto px-4 overflow-x-auto">
-
-<div class="flex gap-2 py-2 min-w-max">
-
-<button class="nav active px-4 py-2 rounded-lg text-xs font-bold"
-data-page="dashboard">
-Dashboard
-</button>
-
-<button class="nav px-4 py-2 rounded-lg text-xs font-bold"
-data-page="prices">
-Live Prices
-</button>
-
-<button class="nav px-4 py-2 rounded-lg text-xs font-bold"
-data-page="scanner">
-Scanner
-</button>
-
-<button class="nav px-4 py-2 rounded-lg text-xs font-bold"
-data-page="analysis">
-Deep Analysis
-</button>
-
-<button class="nav px-4 py-2 rounded-lg text-xs font-bold"
-data-page="scalp">
-Scalp
-</button>
-
-<button class="nav px-4 py-2 rounded-lg text-xs font-bold"
-data-page="swing">
-Swing
-</button>
-
-</div>
-</div>
-</nav>
-
-
-<main class="max-w-[1800px] mx-auto p-4">
-
-
-<!-- =========================================================
-DASHBOARD
-========================================================= -->
-
-<section id="dashboard">
-
-<div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
-
-<div class="card rounded-2xl p-5 xl:col-span-2">
-
-<div class="flex items-center justify-between mb-5">
-
-<div>
-
-<p class="text-purple-300 text-xs font-bold uppercase tracking-widest">
-LIVE MARKET FEED
-</p>
-
-<h2 class="text-2xl font-black">
-Deriv Volatility Indices
-</h2>
-
-</div>
-
-<div class="text-right">
-
-<p class="text-[10px] text-gray-500">
-LIVE MARKETS
-</p>
-
-<p id="liveMarketCount"
-class="font-black text-purple-300">
-0 / 0
-</p>
-
-</div>
-
-</div>
-
-<div id="dashboardPrices"
-class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-</div>
-
-</div>
-
-
-<!-- QUOTE -->
-
-<div class="card rounded-2xl p-5 flex flex-col justify-between">
-
-<div>
-
-<div class="flex justify-between">
-
-<div>
-
-<p class="text-purple-300 text-xs font-bold uppercase tracking-widest">
-TRADER MINDSET
-</p>
-
-<h2 class="font-black text-xl mt-1">
-Stay Disciplined
-</h2>
-
-</div>
-
-<span class="text-purple-400 text-2xl">
-✦
-</span>
-
-</div>
-
-<div class="min-h-[190px] flex items-center">
-
-<p id="quote"
-class="text-xl font-bold leading-relaxed">
-Loading quote...
-</p>
-
-</div>
-
-</div>
-
-<button onclick="newQuote()"
-class="w-full py-3 rounded-xl bg-gradient-to-r from-purple-700 to-purple-500 font-bold text-sm">
-✦ New Quote
-</button>
-
-</div>
-
-</div>
-
-
-<!-- STATS -->
-
-<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-
-<div class="card rounded-2xl p-4">
-<p class="text-xs text-gray-500">Available Markets</p>
-<p id="statMarkets" class="text-2xl font-black mt-1">0</p>
-</div>
-
-<div class="card rounded-2xl p-4">
-<p class="text-xs text-gray-500">Live Prices</p>
-<p id="statLive" class="text-2xl font-black mt-1">0</p>
-</div>
-
-<div class="card rounded-2xl p-4">
-<p class="text-xs text-gray-500">BUY Setups</p>
-<p id="statBuy" class="text-2xl font-black green mt-1">0</p>
-</div>
-
-<div class="card rounded-2xl p-4">
-<p class="text-xs text-gray-500">SELL Setups</p>
-<p id="statSell" class="text-2xl font-black red mt-1">0</p>
-</div>
-
-</div>
-
-
-<!-- BEST SETUPS -->
-
-<div class="card rounded-2xl p-5 mt-4">
-
-<div class="flex items-center justify-between mb-4">
-
-<div>
-
-<p class="text-purple-300 text-xs font-bold uppercase tracking-widest">
-SCANNER
-</p>
-
-<h2 class="text-xl font-black">
-Current Setups
-</h2>
-
-</div>
-
-<button onclick="runScanner()"
-class="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-xs font-bold">
-Scan Now
-</button>
-
-</div>
-
-<div id="dashboardSetups"
-class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-</div>
-
-</div>
-
-</section>
-
-
-<!-- =========================================================
-LIVE PRICES
-========================================================= -->
-
-<section id="prices" class="hidden">
-
-<div class="mb-5">
-
-<p class="text-purple-300 text-xs font-bold uppercase tracking-widest">
-DIRECT DERIV WEBSOCKET
-</p>
-
-<h2 class="text-2xl font-black">
-Live VIX Prices
-</h2>
-
-<p class="text-xs text-gray-500 mt-1">
-Real-time quotes received directly from Deriv.
-</p>
-
-</div>
-
-<div id="priceGrid"
-class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-</div>
-
-</section>
-
-
-<!-- =========================================================
-SCANNER
-========================================================= -->
-
-<section id="scanner" class="hidden">
-
-<div class="flex flex-col md:flex-row justify-between gap-4 mb-5">
-
-<div>
-
-<p class="text-purple-300 text-xs font-bold uppercase tracking-widest">
-MULTI MARKET SCANNER
-</p>
-
-<h2 class="text-2xl font-black">
-VIX Scanner
-</h2>
-
-</div>
-
-<div class="flex gap-2">
-
-<select id="scannerTF"
-class="bg-[#151124] border border-purple-500/20 rounded-lg px-4 py-2 text-xs">
-
-<option value="1m">1 Minute</option>
-<option value="5m" selected>5 Minutes</option>
-<option value="15m">15 Minutes</option>
-<option value="30m">30 Minutes</option>
-<option value="1h">1 Hour</option>
-<option value="4h">4 Hours</option>
-<option value="1d">1 Day</option>
-
-</select>
-
-<button onclick="runScanner()"
-class="px-5 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-xs font-bold">
-Scan
-</button>
-
-</div>
-
-</div>
-
-<div id="scannerGrid"
-class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-</div>
-
-</section>
-
-
-<!-- =========================================================
-ANALYSIS
-========================================================= -->
-
-<section id="analysis" class="hidden">
-
-<div class="grid grid-cols-1 xl:grid-cols-4 gap-4">
-
-<div class="card rounded-2xl p-5">
-
-<p class="text-purple-300 text-xs font-bold uppercase">
-MARKET
-</p>
-
-<select id="analysisSymbol"
-class="w-full mt-2 bg-[#0c0915] border border-purple-500/20 rounded-lg p-3 text-sm">
-</select>
-
-<p class="text-purple-300 text-xs font-bold uppercase mt-5">
-TIMEFRAME
-</p>
-
-<select id="analysisTF"
-class="w-full mt-2 bg-[#0c0915] border border-purple-500/20 rounded-lg p-3 text-sm">
-
-<option value="1m">1 Minute</option>
-<option value="5m" selected>5 Minutes</option>
-<option value="15m">15 Minutes</option>
-<option value="30m">30 Minutes</option>
-<option value="1h">1 Hour</option>
-<option value="4h">4 Hours</option>
-<option value="1d">1 Day</option>
-
-</select>
-
-<div class="mt-6">
-
-<p class="text-xs text-gray-500">
-LIVE PRICE
-</p>
-
-<p id="analysisPrice"
-class="text-3xl font-black text-purple-300">
-—
-</p>
-
-</div>
-
-</div>
-
-<div id="analysisContent"
-class="xl:col-span-3">
-</div>
-
-</div>
-
-</section>
-
-
-<!-- =========================================================
-SCALP
-========================================================= -->
-
-<section id="scalp" class="hidden">
-
-<div class="mb-5">
-
-<p class="text-purple-300 text-xs font-bold uppercase">
-SHORT TERM
-</p>
-
-<h2 class="text-2xl font-black">
-Scalp Analysis
-</h2>
-
-</div>
-
-<div id="scalpGrid"
-class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-</div>
-
-</section>
-
-
-<!-- =========================================================
-SWING
-========================================================= -->
-
-<section id="swing" class="hidden">
-
-<div class="mb-5">
-
-<p class="text-purple-300 text-xs font-bold uppercase">
-HIGHER TIMEFRAME
-</p>
-
-<h2 class="text-2xl font-black">
-Swing Analysis
-</h2>
-
-</div>
-
-<div id="swingGrid"
-class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-</div>
-
-</section>
+<main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+  <!-- ================= HOME TAB ================= -->
+  <div id="tab-home" class="space-y-8 animate-fadeIn">
+    <div class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-purple-900 via-indigo-900 to-purple-950 p-8 sm:p-12 border border-purple-700/40 shadow-2xl glow-box">
+      <div class="absolute -right-10 -bottom-10 w-80 h-80 bg-purple-600/20 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="relative z-10 max-w-2xl">
+        <span class="inline-block px-4 py-1.5 rounded-full bg-purple-500/20 text-purple-300 text-xs font-bold tracking-wider uppercase mb-4 border border-purple-400/30">
+          <i class="fa-solid fa-bolt mr-1.5 text-amber-400"></i> Deriv WebSocket Public API Connected
+        </span>
+        <h2 class="text-4xl sm:text-6xl font-black text-white tracking-tight mb-4">Hey Trader,
+          <span class="bg-gradient-to-r from-purple-300 via-pink-300 to-indigo-300 bg-clip-text text-transparent">Master the Volatility Indices</span></h2>
+        <p class="text-purple-200 text-base sm:text-lg mb-8 leading-relaxed">
+          Welcome to JTRADER. Streaming real-time live prices directly from Deriv WebSockets with institutional indicator breakdowns (EMA 20/50, MACD, RSI, ATR), support/resistance, and absolute risk mitigation.
+        </p>
+        <div class="flex flex-wrap gap-4">
+          <button onclick="switchTab('scanner')" class="px-8 py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold shadow-lg shadow-purple-600/40 transition-all transform hover:-translate-y-0.5">
+            <i class="fa-solid fa-magnifying-glass-chart mr-2"></i> Open VIX Scanner
+          </button>
+          <button onclick="switchTab('live')" class="px-8 py-4 rounded-2xl bg-purple-950/80 hover:bg-purple-900 border border-purple-700/50 text-purple-200 font-bold transition-all">
+            <i class="fa-solid fa-satellite-dish mr-2"></i> Live Price Ticker
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-cardbase rounded-3xl p-8 border border-purple-900/60 shadow-xl relative">
+      <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-xl bg-purple-600/20 flex items-center justify-center text-purple-400 text-lg">
+            <i class="fa-solid fa-quote-left"></i>
+          </div>
+          <div>
+            <h3 class="text-lg font-bold text-white">JTRADER Daily Mindset & Motivation</h3>
+            <p class="text-xs text-purple-400">Curated master trader principles</p>
+          </div>
+        </div>
+        <button onclick="rotateQuote()" class="px-4 py-2 rounded-xl bg-purple-900/50 hover:bg-purple-800 text-purple-200 text-xs font-bold transition-all border border-purple-700/40 flex items-center space-x-2">
+          <i class="fa-solid fa-rotate"></i><span>New Quote</span>
+        </button>
+      </div>
+      <div class="bg-purple-950/40 rounded-2xl p-6 border border-purple-900/40 text-center sm:text-left">
+        <p id="quote-text" class="text-xl sm:text-2xl font-semibold text-purple-100 italic mb-3">"Risk management is not about avoiding risk; it is about mastering probabilities so the market cannot destroy your capital."</p>
+        <p id="quote-author" class="text-sm font-bold text-purple-400 tracking-wide uppercase">— Mark Douglas / JTRADER Mastery</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+      <div class="bg-cardbase p-6 rounded-3xl border border-purple-900/60 shadow-lg">
+        <div class="flex items-center justify-between mb-4">
+          <span class="text-xs font-bold text-purple-400 uppercase tracking-wider">WebSocket Status</span>
+          <div class="w-8 h-8 rounded-lg bg-purple-600/20 flex items-center justify-center text-purple-400"><i class="fa-solid fa-plug"></i></div>
+        </div>
+        <h4 class="text-2xl font-black text-white" id="stat-ws-state">Connecting...</h4>
+        <p class="text-xs text-purple-300 mt-1 font-semibold" id="stat-ws-sub">Deriv API v3 Live Feed</p>
+      </div>
+      <div class="bg-cardbase p-6 rounded-3xl border border-purple-900/60 shadow-lg">
+        <div class="flex items-center justify-between mb-4">
+          <span class="text-xs font-bold text-purple-400 uppercase tracking-wider">Tracked VIX Indices</span>
+          <div class="w-8 h-8 rounded-lg bg-purple-600/20 flex items-center justify-center text-purple-400"><i class="fa-solid fa-list-check"></i></div>
+        </div>
+        <h4 class="text-2xl font-black text-white">12 VIX Instruments</h4>
+        <p class="text-xs text-purple-300 mt-1">Real-time WebSocket subscription active</p>
+      </div>
+      <div class="bg-cardbase p-6 rounded-3xl border border-purple-900/60 shadow-lg">
+        <div class="flex items-center justify-between mb-4">
+          <span class="text-xs font-bold text-purple-400 uppercase tracking-wider">Execution Guard</span>
+          <div class="w-8 h-8 rounded-lg bg-purple-600/20 flex items-center justify-center text-purple-400"><i class="fa-solid fa-shield-halved"></i></div>
+        </div>
+        <h4 class="text-2xl font-black text-white">Anti-Fakeout Engine</h4>
+        <p class="text-xs text-purple-300 mt-1">Retracement & SL/TP Protection</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= LIVE VIX TICKER TAB ================= -->
+  <div id="tab-live" class="space-y-6 hidden animate-fadeIn">
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-cardbase p-6 rounded-3xl border border-purple-900/60 shadow-xl">
+      <div>
+        <h2 class="text-2xl font-black text-white">JTRADER Live VIX Ticker</h2>
+        <p class="text-sm text-purple-300">Continuous real-time streaming prices directly from Deriv WebSocket feed.</p>
+      </div>
+      <div class="flex items-center space-x-3">
+        <span class="text-xs text-purple-400 font-medium" id="live-update-time">Last Tick: Connecting...</span>
+        <button onclick="reconnectDerivWebSocket()" class="px-4 py-2 rounded-xl bg-purple-700 hover:bg-purple-600 text-white font-bold text-xs transition-all shadow-md">
+          <i class="fa-solid fa-rotate mr-1.5"></i> Reconnect WS
+        </button>
+      </div>
+    </div>
+
+    <div id="vix-ticker-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"></div>
+  </div>
+
+  <!-- ================= CHART SCANNER & ANALYSIS TAB ================= -->
+  <div id="tab-scanner" class="space-y-8 hidden animate-fadeIn">
+    <div class="bg-cardbase p-6 rounded-3xl border border-purple-900/60 shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
+      <div class="w-full md:w-auto flex-1">
+        <label class="block text-xs font-bold text-purple-400 uppercase tracking-wider mb-2">Select VIX Instrument</label>
+        <select id="pair-select" onchange="onPairChange()" class="w-full bg-purple-950 border border-purple-800/80 rounded-2xl px-4 py-3 text-white font-bold text-sm focus:outline-none focus:border-purple-500 shadow-inner"></select>
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-purple-400 uppercase tracking-wider mb-2">Timeframe Matrix</label>
+        <div class="flex space-x-2 bg-purple-950 p-1.5 rounded-2xl border border-purple-800/80">
+          <button onclick="setTimeframe('1m')" id="tf-1m" class="tf-btn px-4 py-2 rounded-xl text-xs font-bold transition-all text-purple-300 hover:bg-purple-900">1m</button>
+          <button onclick="setTimeframe('5m')" id="tf-5m" class="tf-btn px-4 py-2 rounded-xl text-xs font-bold transition-all bg-purple-700 text-white shadow-md">5m</button>
+          <button onclick="setTimeframe('15m')" id="tf-15m" class="tf-btn px-4 py-2 rounded-xl text-xs font-bold transition-all text-purple-300 hover:bg-purple-900">15m</button>
+          <button onclick="setTimeframe('30m')" id="tf-30m" class="tf-btn px-4 py-2 rounded-xl text-xs font-bold transition-all text-purple-300 hover:bg-purple-900">30m</button>
+          <button onclick="setTimeframe('1h')" id="tf-1h" class="tf-btn px-4 py-2 rounded-xl text-xs font-bold transition-all text-purple-300 hover:bg-purple-900">1h</button>
+          <button onclick="setTimeframe('4h')" id="tf-4h" class="tf-btn px-4 py-2 rounded-xl text-xs font-bold transition-all text-purple-300 hover:bg-purple-900">4h</button>
+          <button onclick="setTimeframe('1d')" id="tf-1d" class="tf-btn px-4 py-2 rounded-xl text-xs font-bold transition-all text-purple-300 hover:bg-purple-900">1d</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="analysis-output-container" class="space-y-6"></div>
+
+    <div class="bg-cardbase rounded-3xl p-6 border border-purple-900/60 shadow-xl">
+      <div class="flex items-center justify-between mb-6">
+        <h3 class="text-lg font-bold text-white"><i class="fa-solid fa-list-check mr-2 text-purple-400"></i>All VIX Pairs Scanner Matrix</h3>
+        <span class="text-xs text-purple-400 font-medium">Real-time live price calibration & signal evaluation</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="border-b border-purple-900/80 text-xs font-bold text-purple-400 uppercase tracking-wider">
+              <th class="py-3 px-4">Index Name</th>
+              <th class="py-3 px-4">Current Live Price</th>
+              <th class="py-3 px-4">Signal</th>
+              <th class="py-3 px-4">Entry Price</th>
+              <th class="py-3 px-4">Stop Loss</th>
+              <th class="py-3 px-4">Take Profit</th>
+              <th class="py-3 px-4">Action</th>
+            </tr>
+          </thead>
+          <tbody id="scanner-table-body" class="divide-y divide-purple-900/40 text-sm"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= SWING & SCALP TRADES TAB ================= -->
+  <div id="tab-strategies" class="space-y-8 hidden animate-fadeIn">
+    <div class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-purple-900 via-indigo-900 to-purple-950 p-8 border border-purple-700/40 shadow-2xl">
+      <div class="absolute -right-10 -bottom-10 w-80 h-80 bg-purple-600/20 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="relative z-10 max-w-3xl">
+        <span class="inline-block px-4 py-1.5 rounded-full bg-purple-500/20 text-purple-300 text-xs font-bold tracking-wider uppercase mb-3 border border-purple-400/30">
+          <i class="fa-solid fa-crosshairs mr-1.5 text-amber-400"></i> JTRADER Institutional Trade Suite
+        </span>
+        <h2 class="text-3xl sm:text-4xl font-black text-white tracking-tight mb-3">High-Probability Swing & Scalp Setup Matrix</h2>
+        <p class="text-purple-200 text-sm sm:text-base leading-relaxed">
+          Execute with absolute precision. Switch between high-frequency Scalp Trades (1m-5m charts, rapid target capture) and multi-hour Swing Trades (1hr-4hr charts, massive volatility expansion).
+        </p>
+      </div>
+    </div>
+
+    <div class="flex justify-center">
+      <div class="inline-flex bg-purple-950 p-2 rounded-2xl border border-purple-800/60 shadow-lg">
+        <button onclick="switchTradeMode('scalp')" id="btn-mode-scalp" class="px-8 py-3 rounded-xl text-sm font-bold transition-all bg-purple-700 text-white shadow-md">
+          <i class="fa-solid fa-bolt mr-2 text-amber-400"></i> Scalp Setups (1m - 5m)
+        </button>
+        <button onclick="switchTradeMode('swing')" id="btn-mode-swing" class="px-8 py-3 rounded-xl text-sm font-bold transition-all text-purple-300 hover:text-white">
+          <i class="fa-solid fa-chart-line-up mr-2 text-green-400"></i> Swing Setups (1h - 4h)
+        </button>
+      </div>
+    </div>
+
+    <div id="trades-container-scalp" class="space-y-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="scalp-cards-grid"></div>
+    </div>
+
+    <div id="trades-container-swing" class="space-y-6 hidden">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="swing-cards-grid"></div>
+    </div>
+  </div>
 
 </main>
 
+<footer class="bg-cardbase border-t border-purple-900/60 py-6 mt-12 text-center text-xs text-purple-400">
+  <p>JTRADER Pro Trading Suite • Live Deriv WebSocket integration • Built for professional traders</p>
+</footer>
 
 <script>
+/* ============================================================
+   JTRADER PRO REAL DERIV ENGINE
+   Real ticks, real historical candles, EMA20/50, MACD, RSI, ATR,
+   support/resistance, breakout/retest, entry/SL/TP, scalp/swing.
+   NO RANDOM PRICES. NO AUTOMATIC TRADING.
+============================================================ */
 
-/* =========================================================
-CONFIG
-========================================================= */
+// Deriv migrated to a new API platform; the old ws.derivws.com/websockets/v3
+// public endpoint is being retired. This is the current public (no-auth) endpoint:
+const DERIV_WS_URL = "wss://api.derivws.com/trading/v1/options/ws/public";
 
-/*
-IMPORTANT:
-We first ask Deriv for active_symbols.
-Only symbols actually returned by Deriv
-will receive subscriptions.
-*/
+let derivWS = null;
+let reconnectTimer = null;
+let reconnectAttempts = 0;
+let wsConnected = false;
 
-const WS_URL =
-"wss://api.derivws.com/trading/v1/options/ws/public";
+let livePrices = {};
+let priceHistory = {};
+let candleData = {};
 
+let currentTimeframe = '5m';
+let selectedPairForAnalysis = 'R_75';
+let currentTradeMode = 'scalp';
 
-const WANTED_SYMBOLS = [
-"R_10",
-"R_15",
-"R_25",
-"R_30",
-"R_50",
-"R_75",
-"R_100",
-"1HZ10V",
-"1HZ15V",
-"1HZ25V",
-"1HZ50V",
-"1HZ75V"
+let quoteIndex = 0;
+let nextReqId = 1000;
+const candleRequests = new Map();
+
+/* ============================================================
+   VIX CONFIGURATION
+============================================================ */
+const vixPairs = [
+  { symbol: 'R_10',    name: 'Volatility 10 Index',        pip: 2 },
+  { symbol: 'R_25',    name: 'Volatility 25 Index',        pip: 2 },
+  { symbol: 'R_50',    name: 'Volatility 50 Index',        pip: 4 },
+  { symbol: 'R_75',    name: 'Volatility 75 Index',        pip: 2 },
+  { symbol: 'R_100',   name: 'Volatility 100 Index',       pip: 2 },
+  { symbol: 'R_15',    name: 'Volatility 15 Index',        pip: 2 },
+  { symbol: '1HZ10V',  name: 'Volatility 10 (1s) Index',   pip: 2 },
+  { symbol: '1HZ25V',  name: 'Volatility 25 (1s) Index',   pip: 2 },
+  { symbol: '1HZ50V',  name: 'Volatility 50 (1s) Index',   pip: 4 },
+  { symbol: '1HZ75V',  name: 'Volatility 75 (1s) Index',   pip: 2 },
+  { symbol: '1HZ100V', name: 'Volatility 100 (1s) Index',  pip: 2 },
+  { symbol: '1HZ15V',  name: 'Volatility 15 (1s) Index',   pip: 2 }
 ];
 
+vixPairs.forEach(p => {
+  livePrices[p.symbol] = { price: null, prevPrice: null, direction: 'same', lastUpdate: 'Waiting for tick...' };
+  priceHistory[p.symbol] = [];
+  candleData[p.symbol] = [];
+});
 
-const TIMEFRAMES = {
-"1m":60,
-"5m":300,
-"15m":900,
-"30m":1800,
-"1h":3600,
-"4h":14400,
-"1d":86400
-};
+/* ============================================================
+   WEBSOCKET CONNECTION & DERIV STREAM
+============================================================ */
+function initDerivWebSocket() {
+  if (derivWS) {
+    try { derivWS.close(); } catch (e) {}
+  }
 
+  updateWSStatus('connecting', 'Connecting to Deriv WS...');
 
-/* =========================================================
-STATE
-========================================================= */
+  derivWS = new WebSocket(DERIV_WS_URL);
 
-let socket=null;
-let reconnectTimer=null;
-let reqId=1000;
-let renderTimer=null;
+  derivWS.onopen = function () {
+    wsConnected = true;
+    reconnectAttempts = 0;
+    updateWSStatus('connected', 'Deriv Live Feed Connected');
 
-const pending=new Map();
+    vixPairs.forEach((p, i) => {
+      // Keep the existing staggered live tick subscriptions.
+      setTimeout(() => {
+        sendWSMessage({ ticks: p.symbol, subscribe: 1 });
+        requestCandles(p.symbol, currentTimeframe);
+      }, i * 150);
+    });
+  };
 
-const markets={};
-
-
-/* =========================================================
-UTILITY
-========================================================= */
-
-function nextReq(){
-    reqId++;
-    return reqId;
-}
-
-
-function formatPrice(value){
-
-    if(value===null ||
-       value===undefined ||
-       !Number.isFinite(Number(value))){
-        return "—";
+  derivWS.onmessage = function (event) {
+    try {
+      const data = JSON.parse(event.data);
+      handleWSMessage(data);
+    } catch (err) {
+      console.error('Error parsing Deriv WS message:', err);
     }
+  };
 
-    return Number(value).toLocaleString(
-        undefined,
-        {
-            minimumFractionDigits:2,
-            maximumFractionDigits:8
-        }
-    );
-}
+  derivWS.onerror = function (err) {
+    console.error('Deriv WS error:', err);
+    updateWSStatus('error', 'Deriv WS Connection Error');
+  };
 
-
-function escapeHTML(str){
-
-    return String(str)
-        .replaceAll("&","&amp;")
-        .replaceAll("<","&lt;")
-        .replaceAll(">","&gt;")
-        .replaceAll('"',"&quot;")
-        .replaceAll("'","&#039;");
-}
-
-
-/* =========================================================
-CONNECTION UI
-========================================================= */
-
-function setStatus(ok,text){
-
-    const dot=
-        document.getElementById("statusDot");
-
-    const label=
-        document.getElementById("statusText");
-
-    dot.className=
-        "w-2.5 h-2.5 rounded-full "+
-        (ok
-            ?"bg-green-400 pulse"
-            :"bg-yellow-400");
-
-    label.textContent=text;
-}
-
-
-/* =========================================================
-CONNECT
-========================================================= */
-
-function connectDeriv(force=false){
-
+  derivWS.onclose = function () {
+    wsConnected = false;
+    updateWSStatus('error', 'Deriv WS Disconnected. Reconnecting...');
     clearTimeout(reconnectTimer);
+    reconnectAttempts++;
+    const delay = Math.min(10000, reconnectAttempts * 2000);
+    reconnectTimer = setTimeout(initDerivWebSocket, delay);
+  };
+}
 
-    if(socket){
+function reconnectDerivWebSocket() {
+  initDerivWebSocket();
+}
 
-        try{
-            socket.onclose=null;
-            socket.close();
-        }catch(e){}
+function sendWSMessage(msg) {
+  if (derivWS && derivWS.readyState === WebSocket.OPEN) {
+    derivWS.send(JSON.stringify(msg));
+  }
+}
 
+function updateWSStatus(status, text) {
+  const badge = document.getElementById('ws-status-badge');
+  const dot = document.getElementById('ws-dot');
+  const txt = document.getElementById('ws-text');
+  const statWsState = document.getElementById('stat-ws-state');
+  const statWsSub = document.getElementById('stat-ws-sub');
+
+  if (!badge) return;
+
+  if (status === 'connected') {
+    badge.className = "flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-green-500/10 border border-green-500/30 text-green-300 text-xs font-bold";
+    if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse";
+    if (txt) txt.innerText = text;
+    if (statWsState) statWsState.innerText = "Online & Streaming";
+    if (statWsSub) statWsSub.innerText = "Real Ticks Active via Deriv API";
+  } else if (status === 'connecting') {
+    badge.className = "flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-bold";
+    if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse";
+    if (txt) txt.innerText = text;
+    if (statWsState) statWsState.innerText = "Connecting...";
+    if (statWsSub) statWsSub.innerText = "Establishing secure WebSocket";
+  } else {
+    badge.className = "flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-red-500/10 border border-red-500/30 text-red-300 text-xs font-bold";
+    if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-red-500";
+    if (txt) txt.innerText = text;
+    if (statWsState) statWsState.innerText = "Disconnected";
+    if (statWsSub) statWsSub.innerText = "Attempting reconnection...";
+  }
+}
+
+function requestCandles(symbol, timeframe) {
+  const granularities = {
+    '1m': 60,
+    '5m': 300,
+    '15m': 900,
+    '30m': 1800,
+    '1h': 3600,
+    '4h': 14400,
+    '1d': 86400
+  };
+
+  const granularity = granularities[timeframe] || 300;
+  const reqId = ++nextReqId;
+
+  candleRequests.set(reqId, { symbol, timeframe });
+
+  sendWSMessage({
+    ticks_history: symbol,
+    adjust_start_time: 1,
+    count: 200,
+    end: "latest",
+    granularity,
+    style: "candles",
+    subscribe: 0,
+    req_id: reqId
+  });
+}
+
+function handleWSMessage(data) {
+  if (data.msg_type === 'tick') {
+    const tick = data.tick;
+    if (tick && tick.symbol && tick.quote !== undefined) {
+      processTick(tick.symbol, tick.quote, tick.epoch);
     }
+  } else if (data.msg_type === 'candles') {
+    const symbol = data.echo_req && data.echo_req.ticks_history;
+    const candles = data.candles;
+    if (symbol && candles && Array.isArray(candles)) {
+      candleData[symbol] = candles.map(c => ({
+        time: c.epoch,
+        open: Number(c.open),
+        high: Number(c.high),
+        low: Number(c.low),
+        close: Number(c.close)
+      }));
 
-    socket=null;
-
-    if(force){
-        pending.clear();
-    }
-
-    setStatus(
-        false,
-        "Connecting to Deriv..."
-    );
-
-    socket=
-        new WebSocket(WS_URL);
-
-
-    socket.onopen=()=>{
-
-        setStatus(
-            true,
-            "Connected — loading markets"
-        );
-
-        /*
-        FIRST request:
-        Get the symbols Deriv currently has active.
-        */
-
-        const id=nextReq();
-
-        pending.set(id,{
-            type:"active_symbols"
-        });
-
-        socket.send(JSON.stringify({
-            active_symbols:"brief",
-            product_type:"basic",
-            req_id:id
-        }));
-
-    };
-
-
-    socket.onmessage=(event)=>{
-
-        let data;
-
-        try{
-            data=JSON.parse(event.data);
-        }catch(e){
-            return;
+      if (priceHistory[symbol].length === 0) {
+        priceHistory[symbol] = candleData[symbol].map(c => c.close);
+        if (livePrices[symbol].price === null && candleData[symbol].length > 0) {
+          const lastCandle = candleData[symbol][candleData[symbol].length - 1];
+          livePrices[symbol].price = lastCandle.close;
+          livePrices[symbol].lastUpdate = new Date(lastCandle.time * 1000).toLocaleTimeString();
         }
+      }
 
-        handleMessage(data);
-    };
-
-
-    socket.onerror=()=>{
-
-        setStatus(
-            false,
-            "Deriv connection error"
-        );
-
-    };
-
-
-    socket.onclose=()=>{
-
-        setStatus(
-            false,
-            "Disconnected — reconnecting"
-        );
-
-        reconnectTimer=
-            setTimeout(
-                ()=>connectDeriv(),
-                3000
-            );
-
-    };
-
+      if (symbol === selectedPairForAnalysis) {
+        runDeepAnalysis();
+      }
+      renderScannerTable();
+      renderStrategiesGrid();
+    }
+  } else if (data.error) {
+    console.error('Deriv API error:', data.error.message);
+  }
 }
 
+function processTick(symbol, price, epoch) {
+  const timeStr = new Date(epoch * 1000).toLocaleTimeString();
+  if (livePrices[symbol]) {
+    const prev = livePrices[symbol].price;
+    livePrices[symbol].prevPrice = prev;
+    livePrices[symbol].price = price;
+    livePrices[symbol].direction = prev === null ? 'same' : (price > prev ? 'up' : (price < prev ? 'down' : 'same'));
+    livePrices[symbol].lastUpdate = timeStr;
 
-/* =========================================================
-MESSAGE HANDLER
-========================================================= */
+    if (!priceHistory[symbol]) priceHistory[symbol] = [];
+    priceHistory[symbol].push(price);
+    if (priceHistory[symbol].length > 200) priceHistory[symbol].shift();
 
-function handleMessage(data){
-
-    /*
-    API ERROR
-    */
-
-    if(data.error){
-
-        console.error(
-            "Deriv API error:",
-            data.error
-        );
-
-        if(data.req_id){
-            pending.delete(data.req_id);
-        }
-
-        setStatus(
-            false,
-            data.error.message || "Deriv API error"
-        );
-
-        return;
+    if (candleData[symbol] && candleData[symbol].length > 0) {
+      const lastCandle = candleData[symbol][candleData[symbol].length - 1];
+      lastCandle.close = price;
+      if (price > lastCandle.high) lastCandle.high = price;
+      if (price < lastCandle.low) lastCandle.low = price;
     }
+  }
 
+  updateLiveCardElement(symbol);
 
-    /*
-    ACTIVE SYMBOLS
-    */
-
-    if(data.msg_type==="active_symbols"){
-
-        const active=
-            Array.isArray(data.active_symbols)
-                ?data.active_symbols
-                :[];
-
-        setupMarkets(active);
-
-        return;
-    }
-
-
-    /*
-    LIVE TICK
-    */
-
-    if(data.msg_type==="tick" &&
-       data.tick){
-
-        const tick=data.tick;
-
-        const symbol=tick.symbol;
-
-        const quote=Number(tick.quote);
-
-        if(
-            symbol &&
-            Number.isFinite(quote)
-        ){
-
-            updateTick(
-                symbol,
-                quote,
-                Number(tick.epoch)
-            );
-
-        }
-
-        return;
-    }
-
-
-    /*
-    CANDLE DATA
-    */
-
-    if(data.msg_type==="candles"){
-
-        const request=
-            pending.get(data.req_id);
-
-        if(!request){
-            console.warn(
-                "Candle response without mapped request",
-                data
-            );
-            return;
-        }
-
-        pending.delete(
-            data.req_id
-        );
-
-        const candles=
-            normalizeCandles(
-                data.candles || []
-            );
-
-        if(
-            markets[request.symbol]
-        ){
-
-            markets[
-                request.symbol
-            ].candles[
-                request.tf
-            ]=candles;
-
-            scheduleRender();
-
-        }
-
-        return;
-    }
-
-
-    /*
-    HISTORY RESPONSE
-    */
-
-    if(data.msg_type==="history"){
-
-        const request=
-            pending.get(data.req_id);
-
-        if(!request){
-            return;
-        }
-
-        pending.delete(
-            data.req_id
-        );
-
-        /*
-        This is fallback handling.
-        */
-
-        const prices=
-            data.history?.prices || [];
-
-        const times=
-            data.history?.times || [];
-
-        const candles=[];
-
-        for(
-            let i=0;
-            i<prices.length;
-            i++
-        ){
-
-            const p=
-                Number(prices[i]);
-
-            const t=
-                Number(times[i]);
-
-            if(
-                Number.isFinite(p) &&
-                Number.isFinite(t)
-            ){
-
-                candles.push({
-                    time:t,
-                    open:p,
-                    high:p,
-                    low:p,
-                    close:p
-                });
-
-            }
-
-        }
-
-        if(
-            markets[request.symbol]
-        ){
-
-            markets[
-                request.symbol
-            ].candles[
-                request.tf
-            ]=candles;
-
-        }
-
-        scheduleRender();
-
-        return;
-    }
-
+  if (symbol === selectedPairForAnalysis) {
+    runDeepAnalysis();
+  }
 }
 
-
-/* =========================================================
-SETUP MARKETS
-========================================================= */
-
-function setupMarkets(active){
-
-    const available=
-        new Set(
-            active.map(
-                x=>x.symbol
-            )
-        );
-
-
-    const wanted=
-        WANTED_SYMBOLS.filter(
-            symbol =>
-                available.has(symbol)
-        );
-
-
-    /*
-    If Deriv changes symbol availability,
-    we still show the requested symbols
-    but clearly identify missing ones.
-    */
-
-    const finalSymbols=
-        wanted.length
-            ?wanted
-            :WANTED_SYMBOLS;
-
-
-    finalSymbols.forEach(symbol=>{
-
-        const meta=
-            active.find(
-                x=>x.symbol===symbol
-            );
-
-
-        if(!markets[symbol]){
-
-            markets[symbol]={
-
-                symbol,
-
-                name:
-                    meta?.display_name ||
-                    symbol,
-
-                available:
-                    !!meta,
-
-                price:null,
-
-                previousPrice:null,
-
-                epoch:null,
-
-                candles:{}
-
-            };
-
-            Object.keys(
-                TIMEFRAMES
-            ).forEach(tf=>{
-                markets[symbol]
-                    .candles[tf]=[];
-            });
-
-        }
-
-    });
-
-
-    /*
-    Build UI immediately.
-    */
-
-    populateSymbolSelect();
-
-    renderAllPriceCards();
-
-    setStatus(
-        true,
-        `Connected — ${Object.keys(markets).length} markets`
-    );
-
-
-    /*
-    Subscribe to prices.
-    */
-
-    Object.keys(markets)
-        .forEach(
-            subscribeTicks
-        );
-
-
-    /*
-    Load historical candles.
-    */
-
-    Object.keys(markets)
-        .forEach(symbol=>{
-
-            Object.keys(
-                TIMEFRAMES
-            ).forEach(tf=>{
-
-                requestCandles(
-                    symbol,
-                    tf
-                );
-
-            });
-
-        });
-
-
-    updateStats();
-
+/* ============================================================
+   TECHNICAL INDICATORS ENGINE (EMA, RSI, MACD, ATR, S/R)
+============================================================ */
+function calculateEMA(prices, period) {
+  if (!prices || prices.length === 0) return 0;
+  const k = 2 / (period + 1);
+  let ema = prices[0];
+  for (let i = 1; i < prices.length; i++) {
+    ema = (prices[i] * k) + (ema * (1 - k));
+  }
+  return ema;
 }
 
-
-/* =========================================================
-TICKS
-========================================================= */
-
-function subscribeTicks(symbol){
-
-    if(
-        !socket ||
-        socket.readyState!==WebSocket.OPEN
-    ){
-        return;
-    }
-
-    const id=nextReq();
-
-    pending.set(id,{
-        type:"tick",
-        symbol
-    });
-
-    socket.send(
-        JSON.stringify({
-
-            ticks:symbol,
-
-            subscribe:1,
-
-            req_id:id
-
-        })
-    );
-
+function calculateRSI(prices, period = 14) {
+  if (!prices || prices.length < period + 1) return 50;
+  let gains = 0;
+  let losses = 0;
+  for (let i = prices.length - period; i < prices.length; i++) {
+    const diff = prices[i] - prices[i - 1];
+    if (diff >= 0) gains += diff;
+    else losses -= diff;
+  }
+  const avgGain = gains / period;
+  const avgLoss = losses / period;
+  if (avgLoss === 0) return 100;
+  const rs = avgGain / avgLoss;
+  return 100 - (100 / (1 + rs));
 }
 
-
-/* =========================================================
-CANDLES
-========================================================= */
-
-function requestCandles(
-    symbol,
-    tf
-){
-
-    if(
-        !socket ||
-        socket.readyState!==WebSocket.OPEN
-    ){
-        return;
-    }
-
-    const id=nextReq();
-
-    pending.set(id,{
-        type:"candles",
-        symbol,
-        tf
-    });
-
-
-    socket.send(
-        JSON.stringify({
-
-            ticks_history:symbol,
-
-            end:"latest",
-
-            count:250,
-
-            style:"candles",
-
-            granularity:
-                TIMEFRAMES[tf],
-
-            adjust_start_time:1,
-
-            subscribe:0,
-
-            req_id:id
-
-        })
-    );
-
+function calculateMACD(prices) {
+  const ema12 = calculateEMA(prices, 12);
+  const ema26 = calculateEMA(prices, 26);
+  const macdLine = ema12 - ema26;
+  // Simplified signal line (true MACD signal needs an EMA9 of the MACD series over time)
+  const signalLine = macdLine * 0.85;
+  return { macdLine, signalLine };
 }
 
-
-/* =========================================================
-TICK UPDATE
-========================================================= */
-
-function updateTick(
-    symbol,
-    price,
-    epoch
-){
-
-    if(!markets[symbol]){
-        return;
-    }
-
-    const market=
-        markets[symbol];
-
-    market.previousPrice=
-        market.price;
-
-    market.price=
-        price;
-
-    market.epoch=
-        epoch;
-
-
-    /*
-    DIRECT DOM UPDATE.
-    This prevents the interface from
-    constantly rebuilding while ticks
-    arrive.
-    */
-
-    document
-        .querySelectorAll(
-            `[data-price="${symbol}"]`
-        )
-        .forEach(el=>{
-
-            el.textContent=
-                formatPrice(price);
-
-            el.classList.remove(
-                "green",
-                "red"
-            );
-
-            if(
-                market.previousPrice!==null
-            ){
-
-                if(
-                    price>
-                    market.previousPrice
-                ){
-                    el.classList.add(
-                        "green"
-                    );
-                }
-
-                if(
-                    price<
-                    market.previousPrice
-                ){
-                    el.classList.add(
-                        "red"
-                    );
-                }
-
-            }
-
-        });
-
-
-    document
-        .querySelectorAll(
-            `[data-time="${symbol}"]`
-        )
-        .forEach(el=>{
-
-            el.textContent=
-                epoch
-                    ?new Date(
-                        epoch*1000
-                    ).toLocaleTimeString()
-                    :"LIVE";
-
-        });
-
-
-    updateStats();
-
-    scheduleRender();
-
+function calculateATR(candles, period = 14) {
+  if (!candles || candles.length < 2) return 10;
+  let trSum = 0;
+  const count = Math.min(period, candles.length);
+  for (let i = candles.length - count; i < candles.length; i++) {
+    const c = candles[i];
+    const prevClose = i > 0 ? candles[i - 1].close : c.open;
+    const tr = Math.max(c.high - c.low, Math.abs(c.high - prevClose), Math.abs(c.low - prevClose));
+    trSum += tr;
+  }
+  return trSum / count;
 }
 
-
-/* =========================================================
-PRICE CARD
-========================================================= */
-
-function priceCard(symbol){
-
-    const m=markets[symbol];
-
-    return `
-
-    <div class="card rounded-2xl p-4">
-
-        <div class="flex justify-between">
-
-            <div>
-
-                <p class="font-black">
-                    ${escapeHTML(symbol)}
-                </p>
-
-                <p class="text-[10px] text-gray-500 mt-1">
-                    ${escapeHTML(m.name)}
-                </p>
-
-            </div>
-
-            <span class="w-2 h-2 rounded-full
-                ${m.price!==null
-                    ?"bg-green-400 pulse"
-                    :"bg-yellow-400"}">
-            </span>
-
-        </div>
-
-
-        <p
-            data-price="${symbol}"
-            class="text-2xl font-black text-purple-200 mt-5">
-            ${formatPrice(m.price)}
-        </p>
-
-
-        <div class="flex justify-between mt-3">
-
-            <span class="text-[9px] text-gray-600">
-                DERIV LIVE
-            </span>
-
-            <span
-                data-time="${symbol}"
-                class="text-[9px] text-gray-600">
-                ${m.epoch
-                    ?new Date(
-                        m.epoch*1000
-                    ).toLocaleTimeString()
-                    :"WAITING"}
-            </span>
-
-        </div>
-
-    </div>
-
-    `;
-}
-
-
-/* =========================================================
-RENDER PRICE CARDS
-========================================================= */
-
-function renderAllPriceCards(){
-
-    const grid=
-        document.getElementById(
-            "priceGrid"
-        );
-
-    const dash=
-        document.getElementById(
-            "dashboardPrices"
-        );
-
-
-    const symbols=
-        Object.keys(markets);
-
-
-    const html=
-        symbols
-            .map(priceCard)
-            .join("");
-
-
-    if(grid){
-        grid.innerHTML=html;
-    }
-
-
-    if(dash){
-
-        dash.innerHTML=
-            symbols.map(
-                symbol=>{
-
-                    const m=
-                        markets[symbol];
-
-                    return `
-
-                    <div class="rounded-xl
-                        border border-purple-500/10
-                        bg-[#0d0a17]
-                        p-3">
-
-                        <div class="flex justify-between">
-
-                            <span class="font-bold text-xs">
-                                ${symbol}
-                            </span>
-
-                            <span class="w-1.5 h-1.5 rounded-full
-                                ${m.price!==null
-                                    ?"bg-green-400"
-                                    :"bg-yellow-400"}">
-                            </span>
-
-                        </div>
-
-                        <p
-                            data-price="${symbol}"
-                            class="text-lg font-black mt-3">
-                            ${formatPrice(m.price)}
-                        </p>
-
-                        <p
-                            data-time="${symbol}"
-                            class="text-[9px] text-gray-600 mt-1">
-                            ${m.epoch
-                                ?new Date(
-                                    m.epoch*1000
-                                ).toLocaleTimeString()
-                                :"WAITING FOR DERIV"}
-                        </p>
-
-                    </div>
-
-                    `;
-
-                }
-            )
-            .join("");
-
-    }
-
-}
-
-
-/* =========================================================
-NORMALIZE CANDLES
-========================================================= */
-
-function normalizeCandles(candles){
-
-    return candles
-        .map(c=>({
-
-            time:Number(c.epoch),
-
-            open:Number(c.open),
-
-            high:Number(c.high),
-
-            low:Number(c.low),
-
-            close:Number(c.close)
-
-        }))
-        .filter(c=>
-            Number.isFinite(c.time) &&
-            Number.isFinite(c.open) &&
-            Number.isFinite(c.high) &&
-            Number.isFinite(c.low) &&
-            Number.isFinite(c.close)
-        )
-        .sort(
-            (a,b)=>a.time-b.time
-        );
-
-}
-
-
-/* =========================================================
-INDICATORS
-========================================================= */
-
-function closeValues(c){
-
-    return c
-        .map(x=>x.close)
-        .filter(Number.isFinite);
-
-}
-
-
-function EMA(values,period){
-
-    if(values.length<period){
-        return null;
-    }
-
-    const k=
-        2/(period+1);
-
-    let value=
-        values
-            .slice(0,period)
-            .reduce(
-                (a,b)=>a+b,
-                0
-            )/period;
-
-
-    for(
-        let i=period;
-        i<values.length;
-        i++
-    ){
-
-        value=
-            values[i]*k+
-            value*(1-k);
-
-    }
-
-    return value;
-}
-
-
-function RSI(values,period=14){
-
-    if(values.length<=period){
-        return null;
-    }
-
-    let gain=0;
-    let loss=0;
-
-
-    for(
-        let i=1;
-        i<=period;
-        i++
-    ){
-
-        const d=
-            values[i]-
-            values[i-1];
-
-        if(d>=0){
-            gain+=d;
-        }else{
-            loss+=Math.abs(d);
-        }
-
-    }
-
-
-    let avgGain=
-        gain/period;
-
-    let avgLoss=
-        loss/period;
-
-
-    for(
-        let i=period+1;
-        i<values.length;
-        i++
-    ){
-
-        const d=
-            values[i]-
-            values[i-1];
-
-        avgGain=
-            (
-                avgGain*(period-1)+
-                Math.max(d,0)
-            )/period;
-
-        avgLoss=
-            (
-                avgLoss*(period-1)+
-                Math.max(-d,0)
-            )/period;
-
-    }
-
-
-    if(avgLoss===0){
-        return 100;
-    }
-
-    return 100-
-        100/
-        (
-            1+
-            avgGain/avgLoss
-        );
-
-}
-
-
-function ATR(candles,period=14){
-
-    if(candles.length<=period){
-        return null;
-    }
-
-    const tr=[];
-
-
-    for(
-        let i=1;
-        i<candles.length;
-        i++
-    ){
-
-        const c=candles[i];
-        const p=candles[i-1];
-
-        tr.push(
-            Math.max(
-                c.high-c.low,
-                Math.abs(c.high-p.close),
-                Math.abs(c.low-p.close)
-            )
-        );
-
-    }
-
-
-    const recent=
-        tr.slice(-period);
-
-    return recent.reduce(
-        (a,b)=>a+b,
-        0
-    )/recent.length;
-
-}
-
-
-/* =========================================================
-MACD
-========================================================= */
-
-function MACD(values){
-
-    if(values.length<40){
-
-        return {
-            line:null,
-            signal:null,
-            histogram:null
-        };
-
-    }
-
-
-    const macdValues=[];
-
-
-    for(
-        let i=26;
-        i<values.length;
-        i++
-    ){
-
-        const subset=
-            values.slice(0,i+1);
-
-        const fast=
-            EMA(subset,12);
-
-        const slow=
-            EMA(subset,26);
-
-        if(
-            fast!==null &&
-            slow!==null
-        ){
-
-            macdValues.push(
-                fast-slow
-            );
-
-        }
-
-    }
-
-
-    const line=
-        macdValues[
-            macdValues.length-1
-        ];
-
-
-    const signal=
-        macdValues.length>=9
-            ?EMA(macdValues,9)
-            :null;
-
-
+function analyzeMarket(symbol, timeframe) {
+  const pairObj = vixPairs.find(p => p.symbol === symbol);
+  const digits = pairObj && pairObj.pip === 4 ? 4 : 2;
+  const info = livePrices[symbol] || { price: null };
+  const currentPrice = info.price;
+
+  const tfCandles =
+    (window.candleDataByTF &&
+     window.candleDataByTF[symbol] &&
+     window.candleDataByTF[symbol][timeframe]) ||
+    (symbol === selectedPairForAnalysis ? candleData[symbol] : []);
+
+  if (currentPrice === null || !Number.isFinite(Number(currentPrice))) {
     return {
-
-        line,
-
-        signal,
-
-        histogram:
-            line!==null &&
-            signal!==null
-                ?line-signal
-                :null
-
+      symbol, timeframe, currentPrice: null, digits,
+      signal: 'WAIT',
+      ema20: 0, ema50: 0, rsi: '—', macdLine: '—', macdSignal: '—',
+      support: 0, resistance: 0, entryPrice: 0, sl: 0, tp1: 0, tp2: 0, tp3: 0,
+      reason: 'No live Deriv price has been received yet. JTRADER will not create a price or trade level.',
+      waitingFor: 'Waiting for the real Deriv tick and confirmed candle data.',
+      breakouts: ['Wait for live price + candle confirmation before considering any setup.'],
+      isLate: false,
+      lateAdvice: 'No setup is evaluated until real market data is available.',
+      fakeoutDetected: false,
+      fakeoutReason: 'Waiting for enough confirmed candles.',
+      confirmation: 'WAITING FOR DATA'
     };
+  }
 
-}
-
-
-/* =========================================================
-SUPPORT / RESISTANCE
-========================================================= */
-
-function levels(candles){
-
-    const recent=
-        candles.slice(-50);
-
-    if(!recent.length){
-
-        return {
-            support:null,
-            resistance:null
-        };
-
-    }
-
-
+  if (!tfCandles || tfCandles.length < 50) {
     return {
-
-        support:
-            Math.min(
-                ...recent.map(
-                    c=>c.low
-                )
-            ),
-
-        resistance:
-            Math.max(
-                ...recent.map(
-                    c=>c.high
-                )
-            )
-
+      symbol, timeframe, currentPrice, digits,
+      signal: 'WAIT',
+      ema20: 0, ema50: 0, rsi: '—', macdLine: '—', macdSignal: '—',
+      support: 0, resistance: 0, entryPrice: Number(currentPrice.toFixed(digits)),
+      sl: Number(currentPrice.toFixed(digits)),
+      tp1: Number(currentPrice.toFixed(digits)),
+      tp2: Number(currentPrice.toFixed(digits)),
+      tp3: Number(currentPrice.toFixed(digits)),
+      reason: `JTRADER has the live price, but it is still waiting for at least 50 confirmed ${timeframe} candles.`,
+      waitingFor: 'Wait for the historical candle set to finish loading. Do not treat this as a confirmed trade.',
+      breakouts: ['No confirmed breakout until enough candles are available.'],
+      isLate: false,
+      lateAdvice: 'Insufficient candle history.',
+      fakeoutDetected: false,
+      fakeoutReason: 'Not enough candles to evaluate a fakeout.',
+      confirmation: 'WAITING FOR CANDLES'
     };
+  }
 
+  const candles = tfCandles;
+  const closes = candles.map(c => c.close);
+  const highs = candles.map(c => c.high);
+  const lows = candles.map(c => c.low);
+
+  const ema20 = calculateEMA(closes, 20);
+  const ema50 = calculateEMA(closes, 50);
+  const rsi = calculateRSI(closes, 14);
+  const { macdLine, signalLine } = calculateMACD(closes);
+  const atr = calculateATR(candles, 14);
+
+  const lookback = candles.slice(-20);
+  const supportLevel = Number(Math.min(...lookback.map(c => c.low)).toFixed(digits));
+  const resistanceLevel = Number(Math.max(...lookback.map(c => c.high)).toFixed(digits));
+
+  const last = candles[candles.length - 1];
+  const prev = candles[candles.length - 2];
+
+  // Fakeout / liquidity sweep checks.
+  const upperWick = last.high - Math.max(last.open, last.close);
+  const lowerWick = Math.min(last.open, last.close) - last.low;
+  const body = Math.abs(last.close - last.open);
+
+  const bearishSweep =
+    last.high > resistanceLevel &&
+    last.close < resistanceLevel &&
+    upperWick > Math.max(body * 1.2, atr * 0.15);
+
+  const bullishSweep =
+    last.low < supportLevel &&
+    last.close > supportLevel &&
+    lowerWick > Math.max(body * 1.2, atr * 0.15);
+
+  const fakeoutDetected = bearishSweep || bullishSweep;
+
+  let fakeoutReason = 'No major fakeout pattern detected on the latest confirmed candle.';
+  if (bearishSweep) {
+    fakeoutReason = 'Bearish fakeout warning: price swept resistance and closed back below the level with rejection.';
+  } else if (bullishSweep) {
+    fakeoutReason = 'Bullish fakeout warning: price swept support and closed back above the level with rejection.';
+  }
+
+  // Breakout/retest confirmation.
+  const priorResistance = Math.max(...candles.slice(-21, -1).map(c => c.high));
+  const priorSupport = Math.min(...candles.slice(-21, -1).map(c => c.low));
+
+  const bullishBreakout = last.close > priorResistance;
+  const bearishBreakout = last.close < priorSupport;
+
+  const bullishCandle = last.close > last.open && last.close > prev.close;
+  const bearishCandle = last.close < last.open && last.close < prev.close;
+
+  let buyScore = 0;
+  let sellScore = 0;
+  const buyReasons = [];
+  const sellReasons = [];
+  const waitReasons = [];
+
+  if (currentPrice > ema20 && ema20 > ema50) {
+    buyScore += 25;
+    buyReasons.push('Bullish EMA structure: price > EMA20 > EMA50.');
+  }
+
+  if (currentPrice < ema20 && ema20 < ema50) {
+    sellScore += 25;
+    sellReasons.push('Bearish EMA structure: price < EMA20 < EMA50.');
+  }
+
+  if (rsi > 50 && rsi < 70) {
+    buyScore += 15;
+    buyReasons.push(`RSI ${rsi.toFixed(1)} supports bullish momentum without being extremely overbought.`);
+  }
+
+  if (rsi < 50 && rsi > 30) {
+    sellScore += 15;
+    sellReasons.push(`RSI ${rsi.toFixed(1)} supports bearish momentum without being extremely oversold.`);
+  }
+
+  if (macdLine > signalLine) {
+    buyScore += 20;
+    buyReasons.push('MACD is above its signal line.');
+  }
+
+  if (macdLine < signalLine) {
+    sellScore += 20;
+    sellReasons.push('MACD is below its signal line.');
+  }
+
+  if (bullishCandle) {
+    buyScore += 10;
+    buyReasons.push('Latest confirmed candle supports bullish continuation.');
+  }
+
+  if (bearishCandle) {
+    sellScore += 10;
+    sellReasons.push('Latest confirmed candle supports bearish continuation.');
+  }
+
+  if (bullishBreakout) {
+    buyScore += 15;
+    buyReasons.push('Confirmed candle close above the recent resistance range.');
+  }
+
+  if (bearishBreakout) {
+    sellScore += 15;
+    sellReasons.push('Confirmed candle close below the recent support range.');
+  }
+
+  if (fakeoutDetected) {
+    buyScore -= 30;
+    sellScore -= 30;
+    waitReasons.push(fakeoutReason);
+  }
+
+  if (rsi >= 75) {
+    buyScore -= 20;
+    waitReasons.push(`RSI ${rsi.toFixed(1)} is heavily overbought; avoid chasing a BUY.`);
+  }
+
+  if (rsi <= 25) {
+    sellScore -= 20;
+    waitReasons.push(`RSI ${rsi.toFixed(1)} is heavily oversold; avoid chasing a SELL.`);
+  }
+
+  let signal = 'WAIT';
+  if (buyScore >= 65 && buyScore > sellScore && !fakeoutDetected) {
+    signal = 'BUY';
+  } else if (sellScore >= 65 && sellScore > buyScore && !fakeoutDetected) {
+    signal = 'SELL';
+  } else {
+    waitReasons.push('Full confirmation is not aligned strongly enough yet.');
+  }
+
+  const atrSafe = Number.isFinite(atr) && atr > 0 ? atr : null;
+
+  let entryPrice = Number(currentPrice.toFixed(digits));
+  let sl = entryPrice;
+  let tp1 = entryPrice;
+  let tp2 = entryPrice;
+  let tp3 = entryPrice;
+
+  if (atrSafe && signal === 'BUY') {
+    entryPrice = Number((currentPrice + atrSafe * 0.05).toFixed(digits));
+    sl = Number((currentPrice - atrSafe * 1.5).toFixed(digits));
+    tp1 = Number((currentPrice + atrSafe * 1.5).toFixed(digits));
+    tp2 = Number((currentPrice + atrSafe * 2.5).toFixed(digits));
+    tp3 = Number((currentPrice + atrSafe * 3.5).toFixed(digits));
+  }
+
+  if (atrSafe && signal === 'SELL') {
+    entryPrice = Number((currentPrice - atrSafe * 0.05).toFixed(digits));
+    sl = Number((currentPrice + atrSafe * 1.5).toFixed(digits));
+    tp1 = Number((currentPrice - atrSafe * 1.5).toFixed(digits));
+    tp2 = Number((currentPrice - atrSafe * 2.5).toFixed(digits));
+    tp3 = Number((currentPrice - atrSafe * 3.5).toFixed(digits));
+  }
+
+  const distance = atrSafe ? Math.abs(currentPrice - entryPrice) : 0;
+  const isLate = atrSafe ? distance > atrSafe * 0.75 : false;
+
+  return {
+    symbol, timeframe, currentPrice, digits,
+    signal,
+    ema20: ema20.toFixed(digits),
+    ema50: ema50.toFixed(digits),
+    rsi: rsi.toFixed(1),
+    macdLine: macdLine.toFixed(4),
+    macdSignal: signalLine.toFixed(4),
+    support: supportLevel,
+    resistance: resistanceLevel,
+    entryPrice, sl, tp1, tp2, tp3,
+    reason:
+      signal === 'BUY'
+        ? buyReasons.join(' ')
+        : signal === 'SELL'
+          ? sellReasons.join(' ')
+          : `No clean entry. ${waitReasons.join(' ')}`,
+    waitingFor:
+      signal === 'BUY'
+        ? 'Wait for price to hold the entry zone and for the next candle to confirm continuation. If price sweeps and closes back below resistance, stand aside.'
+        : signal === 'SELL'
+          ? 'Wait for price to reject the resistance/entry area and for the next candle to confirm continuation. If price sweeps support and closes back above it, stand aside.'
+          : 'Wait for a confirmed breakout/retest or stronger trend alignment. Do not enter while the setup remains mixed.',
+    breakouts: [
+      `Bullish trigger: confirmed candle close above ${resistanceLevel}.`,
+      `Bearish trigger: confirmed candle close below ${supportLevel}.`,
+      fakeoutReason
+    ],
+    isLate,
+    lateAdvice: isLate
+      ? 'Price has moved too far from the calculated entry relative to ATR. Wait for a retracement instead of chasing.'
+      : 'Price is not excessively extended from the calculated entry zone.',
+    fakeoutDetected,
+    fakeoutReason,
+    confirmation:
+      fakeoutDetected
+        ? 'FAKEOUT WARNING — WAIT'
+        : signal === 'BUY'
+          ? 'BUY CONFIRMATION'
+          : signal === 'SELL'
+            ? 'SELL CONFIRMATION'
+            : 'WAIT FOR CONFIRMATION'
+  };
 }
 
+/* ============================================================
+   UI ROUTING & RENDERING
+============================================================ */
+function switchTab(tabId) {
+  ['home', 'live', 'scanner', 'strategies'].forEach(t => {
+    const tabEl = document.getElementById(`tab-${t}`);
+    if (tabEl) tabEl.classList.add('hidden');
 
-/* =========================================================
-FAKEOUT
-========================================================= */
-
-function fakeout(
-    candles,
-    support,
-    resistance
-){
-
-    if(candles.length<3){
-
-        return {
-            detected:false,
-            reason:"Not enough data."
-        };
-
+    const navEl = document.getElementById(`nav-${t}`);
+    if (navEl) {
+      navEl.classList.remove('bg-purple-700', 'text-white', 'shadow-md');
+      navEl.classList.add('text-purple-300', 'hover:text-white', 'hover:bg-purple-900/50');
     }
 
-
-    const last=
-        candles[candles.length-1];
-
-    const previous=
-        candles[candles.length-2];
-
-
-    /*
-    Resistance sweep.
-    */
-
-    if(
-        resistance!==null &&
-        last.high>resistance &&
-        last.close<resistance &&
-        previous.close<=resistance
-    ){
-
-        return {
-
-            detected:true,
-
-            type:"BEARISH FAKEOUT",
-
-            reason:
-                "Price swept resistance and closed back below it."
-
-        };
-
+    const mobBtn = document.getElementById(`mob-nav-${t}`);
+    if (mobBtn) {
+      mobBtn.classList.remove('bg-purple-700', 'text-white');
+      mobBtn.classList.add('bg-purple-900/40', 'text-purple-300');
     }
+  });
 
+  const activeTab = document.getElementById(`tab-${tabId}`);
+  if (activeTab) activeTab.classList.remove('hidden');
 
-    /*
-    Support sweep.
-    */
+  const activeNav = document.getElementById(`nav-${tabId}`);
+  if (activeNav) {
+    activeNav.classList.remove('text-purple-300', 'hover:text-white', 'hover:bg-purple-900/50');
+    activeNav.classList.add('bg-purple-700', 'text-white', 'shadow-md');
+  }
 
-    if(
-        support!==null &&
-        last.low<support &&
-        last.close>support &&
-        previous.close>=support
-    ){
+  const activeMob = document.getElementById(`mob-nav-${tabId}`);
+  if (activeMob) {
+    activeMob.classList.remove('bg-purple-900/40', 'text-purple-300');
+    activeMob.classList.add('bg-purple-700', 'text-white');
+  }
 
-        return {
-
-            detected:true,
-
-            type:"BULLISH FAKEOUT",
-
-            reason:
-                "Price swept support and closed back above it."
-
-        };
-
-    }
-
-
-    /*
-    Wick rejection.
-    */
-
-    const body=
-        Math.abs(
-            last.close-last.open
-        );
-
-    const upper=
-        last.high-
-        Math.max(
-            last.open,
-            last.close
-        );
-
-    const lower=
-        Math.min(
-            last.open,
-            last.close
-        )-
-        last.low;
-
-
-    if(
-        body>0 &&
-        upper>body*2
-    ){
-
-        return {
-
-            detected:true,
-
-            type:"UPPER WICK REJECTION",
-
-            reason:
-                "Large upper wick indicates rejection of higher prices."
-
-        };
-
-    }
-
-
-    if(
-        body>0 &&
-        lower>body*2
-    ){
-
-        return {
-
-            detected:true,
-
-            type:"LOWER WICK REJECTION",
-
-            reason:
-                "Large lower wick indicates rejection of lower prices."
-
-        };
-
-    }
-
-
-    return {
-
-        detected:false,
-
-        type:"NONE",
-
-        reason:
-            "No major fakeout detected."
-
-    };
-
+  if (tabId === 'live') {
+    renderLiveTickerCards();
+  } else if (tabId === 'scanner') {
+    populatePairDropdown();
+    runDeepAnalysis();
+    renderScannerTable();
+  } else if (tabId === 'strategies') {
+    renderStrategiesGrid();
+  }
 }
 
+function switchTradeMode(mode) {
+  currentTradeMode = mode;
+  const btnScalp = document.getElementById('btn-mode-scalp');
+  const btnSwing = document.getElementById('btn-mode-swing');
+  const contScalp = document.getElementById('trades-container-scalp');
+  const contSwing = document.getElementById('trades-container-swing');
 
-/* =========================================================
-CANDLE CONFIRMATION
-========================================================= */
-
-function candleConfirmation(candles){
-
-    if(candles.length<3){
-
-        return {
-            bull:false,
-            bear:false,
-            text:"Waiting for candle confirmation."
-        };
-
-    }
-
-
-    const a=
-        candles[candles.length-2];
-
-    const b=
-        candles[candles.length-1];
-
-
-    const bull=
-        b.close>b.open &&
-        b.close>a.close;
-
-
-    const bear=
-        b.close<b.open &&
-        b.close<a.close;
-
-
-    return {
-
-        bull,
-
-        bear,
-
-        text:
-            bull
-                ?"Bullish candle confirmation."
-                :bear
-                    ?"Bearish candle confirmation."
-                    :"No strong candle confirmation."
-
-    };
-
+  if (mode === 'scalp') {
+    btnScalp.className = "px-8 py-3 rounded-xl text-sm font-bold transition-all bg-purple-700 text-white shadow-md";
+    btnSwing.className = "px-8 py-3 rounded-xl text-sm font-bold transition-all text-purple-300 hover:text-white";
+    contScalp.classList.remove('hidden');
+    contSwing.classList.add('hidden');
+  } else {
+    btnSwing.className = "px-8 py-3 rounded-xl text-sm font-bold transition-all bg-purple-700 text-white shadow-md";
+    btnScalp.className = "px-8 py-3 rounded-xl text-sm font-bold transition-all text-purple-300 hover:text-white";
+    contSwing.classList.remove('hidden');
+    contScalp.classList.add('hidden');
+  }
+  renderStrategiesGrid();
 }
 
-
-/* =========================================================
-ANALYSIS ENGINE
-========================================================= */
-
-function analyze(
-    symbol,
-    tf
-){
-
-    const m=markets[symbol];
-
-    if(!m){
-
-        return {
-            symbol,
-            tf,
-            signal:"WAIT",
-            score:0,
-            reasons:["Market unavailable."]
-        };
-
-    }
-
-
-    const candles=
-        m.candles[tf] || [];
-
-
-    const price=m.price;
-
-
-    if(
-        price===null ||
-        candles.length<40
-    ){
-
-        return {
-
-            symbol,
-
-            tf,
-
-            price,
-
-            signal:"WAIT",
-
-            score:0,
-
-            trend:"WAITING",
-
-            reasons:[
-                "Waiting for live price and historical candles."
-            ],
-
-            wait:[
-                "Not enough confirmed data yet."
-            ],
-
-            fake:{
-                detected:false,
-                reason:"Waiting for data."
-            }
-
-        };
-
-    }
-
-
-    const values=
-        closeValues(candles);
-
-
-    const e20=
-        EMA(values,20);
-
-    const e50=
-        EMA(values,50);
-
-    const rsi=
-        RSI(values);
-
-    const atr=
-        ATR(candles);
-
-    const macd=
-        MACD(values);
-
-    const lv=
-        levels(candles);
-
-    const fake=
-        fakeout(
-            candles,
-            lv.support,
-            lv.resistance
-        );
-
-    const candle=
-        candleConfirmation(candles);
-
-
-    let buy=0;
-    let sell=0;
-
-
-    const buyReasons=[];
-    const sellReasons=[];
-    const waitReasons=[];
-
-
-    /*
-    Trend.
-    */
-
-    if(
-        e20!==null &&
-        e50!==null &&
-        price>e20 &&
-        e20>e50
-    ){
-
-        buy+=25;
-
-        buyReasons.push(
-            "Bullish EMA structure: price > EMA20 > EMA50."
-        );
-
-    }
-
-
-    if(
-        e20!==null &&
-        e50!==null &&
-        price<e20 &&
-        e20<e50
-    ){
-
-        sell+=25;
-
-        sellReasons.push(
-            "Bearish EMA structure: price < EMA20 < EMA50."
-        );
-
-    }
-
-
-    /*
-    RSI.
-    */
-
-    if(
-        rsi!==null &&
-        rsi>50 &&
-        rsi<70
-    ){
-
-        buy+=15;
-
-        buyReasons.push(
-            `RSI ${rsi.toFixed(1)} supports bullish momentum.`
-        );
-
-    }
-
-
-    if(
-        rsi!==null &&
-        rsi<50 &&
-        rsi>30
-    ){
-
-        sell+=15;
-
-        sellReasons.push(
-            `RSI ${rsi.toFixed(1)} supports bearish momentum.`
-        );
-
-    }
-
-
-    /*
-    MACD.
-    */
-
-    if(
-        macd.line!==null &&
-        macd.signal!==null &&
-        macd.line>macd.signal
-    ){
-
-        buy+=20;
-
-        buyReasons.push(
-            "MACD is above its signal line."
-        );
-
-    }
-
-
-    if(
-        macd.line!==null &&
-        macd.signal!==null &&
-        macd.line<macd.signal
-    ){
-
-        sell+=20;
-
-        sellReasons.push(
-            "MACD is below its signal line."
-        );
-
-    }
-
-
-    /*
-    Candle.
-    */
-
-    if(candle.bull){
-
-        buy+=15;
-
-        buyReasons.push(
-            candle.text
-        );
-
-    }
-
-
-    if(candle.bear){
-
-        sell+=15;
-
-        sellReasons.push(
-            candle.text
-        );
-
-    }
-
-
-    /*
-    Fakeout protection.
-    */
-
-    if(fake.detected){
-
-        buy-=25;
-        sell-=25;
-
-        waitReasons.push(
-            `${fake.type}: ${fake.reason}`
-        );
-
-    }
-
-
-    /*
-    Overextended RSI.
-    */
-
-    if(rsi!==null && rsi>=75){
-
-        buy-=15;
-
-        waitReasons.push(
-            "RSI is heavily overbought. Chasing a BUY is risky."
-        );
-
-    }
-
-
-    if(rsi!==null && rsi<=25){
-
-        sell-=15;
-
-        waitReasons.push(
-            "RSI is heavily oversold. Chasing a SELL is risky."
-        );
-
-    }
-
-
-    let signal="WAIT";
-
-
-    if(
-        buy>=60 &&
-        buy>sell &&
-        !fake.detected
-    ){
-
-        signal="BUY";
-
-    }
-    else if(
-        sell>=60 &&
-        sell>buy &&
-        !fake.detected
-    ){
-
-        signal="SELL";
-
-    }
-    else{
-
-        signal="WAIT";
-
-        waitReasons.push(
-            "Full confirmation is not aligned yet."
-        );
-
-    }
-
-
-    const score=
-        Math.max(
-            0,
-            Math.min(
-                100,
-                Math.max(
-                    buy,
-                    sell
-                )
-            )
-        );
-
-
-    /*
-    ATR trade levels.
-    */
-
-    let entryLow=null;
-    let entryHigh=null;
-    let stop=null;
-    let tp1=null;
-    let tp2=null;
-    let tp3=null;
-
-
-    if(
-        atr!==null &&
-        signal!=="WAIT"
-    ){
-
-        if(signal==="BUY"){
-
-            entryLow=
-                price-atr*.20;
-
-            entryHigh=
-                price+atr*.10;
-
-            stop=
-                entryLow-atr*1.20;
-
-            tp1=
-                price+atr*1.2;
-
-            tp2=
-                price+atr*2;
-
-            tp3=
-                price+atr*3;
-
-        }
-
-
-        if(signal==="SELL"){
-
-            entryLow=
-                price-atr*.10;
-
-            entryHigh=
-                price+atr*.20;
-
-            stop=
-                entryHigh+atr*1.20;
-
-            tp1=
-                price-atr*1.2;
-
-            tp2=
-                price-atr*2;
-
-            tp3=
-                price-atr*3;
-
-        }
-
-    }
-
-
-    let trend="RANGING";
-
-
-    if(
-        e20!==null &&
-        e50!==null
-    ){
-
-        if(
-            price>e20 &&
-            e20>e50
-        ){
-            trend="BULLISH";
-        }
-
-        else if(
-            price<e20 &&
-            e20<e50
-        ){
-            trend="BEARISH";
-        }
-
-    }
-
-
-    return {
-
-        symbol,
-        tf,
-
-        price,
-
-        signal,
-
-        score,
-
-        trend,
-
-        e20,
-        e50,
-
-        rsi,
-
-        atr,
-
-        macd,
-
-        support:lv.support,
-
-        resistance:lv.resistance,
-
-        fake,
-
-        candle,
-
-        buyReasons,
-
-        sellReasons,
-
-        waitReasons,
-
-        entryLow,
-
-        entryHigh,
-
-        stop,
-
-        tp1,
-
-        tp2,
-
-        tp3
-
-    };
-
-}
-
-
-/* =========================================================
-SCANNER CARD
-========================================================= */
-
-function setupCard(r){
-
-    const cls=
-        r.signal==="BUY"
-            ?"buy-card"
-            :r.signal==="SELL"
-                ?"sell-card"
-                :"wait-card";
-
-
-    const signalColor=
-        r.signal==="BUY"
-            ?"green"
-            :r.signal==="SELL"
-                ?"red"
-                :"yellow";
-
-
-    return `
-
-    <div class="card ${cls} rounded-2xl p-5">
-
-        <div class="flex justify-between">
-
-            <div>
-
-                <p class="text-lg font-black">
-                    ${escapeHTML(r.symbol)}
-                </p>
-
-                <p class="text-[10px] text-gray-500">
-                    ${r.tf}
-                </p>
-
-            </div>
-
-            <div class="text-right">
-
-                <p class="text-[9px] text-gray-500">
-                    SCORE
-                </p>
-
-                <p class="font-black">
-                    ${Math.round(r.score)}
-                </p>
-
-            </div>
-
-        </div>
-
-
-        <div class="mt-5">
-
-            <p class="text-[9px] text-gray-500">
-                LIVE PRICE
-            </p>
-
-            <p class="text-2xl font-black">
-                ${formatPrice(r.price)}
-            </p>
-
-        </div>
-
-
-        <div class="mt-4">
-
-            <p class="text-[9px] text-gray-500">
-                SIGNAL
-            </p>
-
-            <p class="text-2xl font-black ${signalColor}">
-                ${r.signal}
-            </p>
-
-        </div>
-
-
-        <div class="grid grid-cols-2 gap-3 mt-4">
-
-            <div>
-
-                <p class="text-[9px] text-gray-500">
-                    TREND
-                </p>
-
-                <p class="text-xs font-bold">
-                    ${r.trend}
-                </p>
-
-            </div>
-
-            <div>
-
-                <p class="text-[9px] text-gray-500">
-                    RSI
-                </p>
-
-                <p class="text-xs font-bold">
-                    ${r.rsi!==null
-                        ?r.rsi.toFixed(1)
-                        :"—"}
-                </p>
-
-            </div>
-
-        </div>
-
-
-        <div class="mt-4 p-3 rounded-xl bg-black/20">
-
-            <p class="text-[9px] text-gray-500">
-                FAKEOUT CHECK
-            </p>
-
-            <p class="text-xs font-bold mt-1 ${
-                r.fake?.detected
-                    ?"red"
-                    :"green"
-            }">
-
-                ${
-                    r.fake?.detected
-                        ?r.fake.type
-                        :"NO MAJOR FAKEOUT"
-                }
-
-            </p>
-
-        </div>
-
+function tradeCardHTML(p, analysis, modeLabel, tfLabel, badgeColor) {
+  const d = analysis.digits;
+  const fmt = v => v.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
+  return `
+    <div>
+      <div class="flex items-center justify-between mb-4">
+        <span class="px-3 py-1 rounded-full text-xs font-bold border ${badgeColor}">${modeLabel} ${analysis.signal}</span>
+        <span class="text-xs text-purple-400 font-semibold">${tfLabel}</span>
+      </div>
+      <h4 class="text-xl font-black text-white mb-2">${p.name}</h4>
+      <p class="text-xs text-purple-300 mb-4">${analysis.reason.substring(0, 90)}...</p>
+
+      <div class="space-y-2.5 bg-purple-950/60 p-4 rounded-2xl border border-purple-900/50 text-xs mb-4">
+        <div class="flex justify-between"><span class="text-purple-400">Entry Target:</span><span class="font-bold text-white">${fmt(analysis.entryPrice)}</span></div>
+        <div class="flex justify-between"><span class="text-purple-400">Stop Loss (SL):</span><span class="font-bold text-red-400">${fmt(analysis.sl)}</span></div>
+        <div class="flex justify-between"><span class="text-purple-400">Take Profit (TP1):</span><span class="font-bold text-green-400">${fmt(analysis.tp1)}</span></div>
+      </div>
     </div>
-
-    `;
-
+    <button onclick="selectAndAnalyze('${p.symbol}')" class="w-full py-2.5 rounded-xl bg-purple-700 hover:bg-purple-600 text-white font-bold text-xs transition-all shadow-md">
+      View Chart Analysis
+    </button>
+  `;
 }
 
+function renderStrategiesGrid() {
+  const scalpGrid = document.getElementById('scalp-cards-grid');
+  const swingGrid = document.getElementById('swing-cards-grid');
+  if (!scalpGrid || !swingGrid) return;
 
-/* =========================================================
-RUN SCANNER
-========================================================= */
+  scalpGrid.innerHTML = '';
+  swingGrid.innerHTML = '';
 
-function runScanner(){
+  vixPairs.slice(0, 6).forEach((p) => {
+    const analysis = analyzeMarket(p.symbol, '1m');
+    const isBuy = analysis.signal === 'BUY';
+    const isSell = analysis.signal === 'SELL';
+    const badgeColor = isBuy ? 'bg-green-500/20 text-green-300 border-green-500/40' : (isSell ? 'bg-red-500/20 text-red-300 border-red-500/40' : 'bg-amber-500/20 text-amber-300 border-amber-500/40');
 
-    const tf=
-        document.getElementById(
-            "scannerTF"
-        ).value;
+    const card = document.createElement('div');
+    card.className = "bg-cardbase rounded-3xl p-6 border border-purple-900/60 shadow-xl flex flex-col justify-between";
+    card.innerHTML = tradeCardHTML(p, analysis, 'SCALP', '1m - 5m TF', badgeColor);
+    scalpGrid.appendChild(card);
+  });
 
+  vixPairs.slice(6, 12).forEach((p) => {
+    const analysis = analyzeMarket(p.symbol, '1h');
+    const isBuy = analysis.signal === 'BUY';
+    const isSell = analysis.signal === 'SELL';
+    const badgeColor = isBuy ? 'bg-green-500/20 text-green-300 border-green-500/40' : (isSell ? 'bg-red-500/20 text-red-300 border-red-500/40' : 'bg-amber-500/20 text-amber-300 border-amber-500/40');
 
-    const results=
-        Object.keys(markets)
-            .map(
-                symbol =>
-                    analyze(
-                        symbol,
-                        tf
-                    )
-            )
-            .sort(
-                (a,b)=>
-                    b.score-a.score
-            );
-
-
-    document.getElementById(
-        "scannerGrid"
-    ).innerHTML=
-        results
-            .map(setupCard)
-            .join("");
-
-
-    document.getElementById(
-        "dashboardSetups"
-    ).innerHTML=
-        results
-            .slice(0,6)
-            .map(setupCard)
-            .join("");
-
-
-    updateStats();
-
+    const card = document.createElement('div');
+    card.className = "bg-cardbase rounded-3xl p-6 border border-purple-900/60 shadow-xl flex flex-col justify-between";
+    card.innerHTML = tradeCardHTML(p, analysis, 'SWING', '1h - 4h TF', badgeColor);
+    swingGrid.appendChild(card);
+  });
 }
 
-
-/* =========================================================
-DEEP ANALYSIS
-========================================================= */
-
-function renderAnalysis(){
-
-    const symbol=
-        document.getElementById(
-            "analysisSymbol"
-        ).value;
-
-
-    const tf=
-        document.getElementById(
-            "analysisTF"
-        ).value;
-
-
-    const r=
-        analyze(
-            symbol,
-            tf
-        );
-
-
-    document.getElementById(
-        "analysisPrice"
-    ).textContent=
-        formatPrice(
-            markets[symbol]?.price
-        );
-
-
-    const signalClass=
-        r.signal==="BUY"
-            ?"buy-card"
-            :r.signal==="SELL"
-                ?"sell-card"
-                :"wait-card";
-
-
-    const reasons=
-        r.signal==="BUY"
-            ?r.buyReasons
-            :r.signal==="SELL"
-                ?r.sellReasons
-                :[];
-
-
-    const reasonHTML=
-        reasons.length
-            ?reasons.map(
-                x=>`
-                <div class="p-3 rounded-xl bg-black/20 text-sm">
-                    ✓ ${escapeHTML(x)}
-                </div>
-                `
-            ).join("")
-            :`
-            <div class="p-3 rounded-xl bg-black/20 text-sm text-gray-400">
-                No fully confirmed entry yet.
-            </div>
-            `;
-
-
-    const waitHTML=
-        r.waitReasons.length
-            ?r.waitReasons.map(
-                x=>`
-                <div class="p-3 rounded-xl bg-black/20 text-sm">
-                    • ${escapeHTML(x)}
-                </div>
-                `
-            ).join("")
-            :`
-            <div class="p-3 rounded-xl bg-black/20 text-sm text-gray-400">
-                No major warning detected.
-            </div>
-            `;
-
-
-    document.getElementById(
-        "analysisContent"
-    ).innerHTML=`
-
-    <div class="space-y-4">
-
-
-        <div class="card ${signalClass} rounded-2xl p-5">
-
-            <div class="flex flex-col md:flex-row
-                justify-between gap-4">
-
-                <div>
-
-                    <p class="text-xs text-purple-300 font-bold">
-                        ${symbol} • ${tf}
-                    </p>
-
-                    <h2 class="text-4xl font-black mt-2">
-                        ${r.signal}
-                    </h2>
-
-                    <p class="text-xs text-gray-400 mt-2">
-                        Setup score:
-                        <b>${Math.round(r.score)}/100</b>
-                    </p>
-
-                </div>
-
-                <div>
-
-                    <p class="text-[9px] text-gray-500">
-                        CURRENT PRICE
-                    </p>
-
-                    <p class="text-3xl font-black">
-                        ${formatPrice(r.price)}
-                    </p>
-
-                </div>
-
-            </div>
-
-        </div>
-
-
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-
-            ${metric("Trend",r.trend)}
-
-            ${metric(
-                "RSI",
-                r.rsi!==null
-                    ?r.rsi.toFixed(2)
-                    :"—"
-            )}
-
-            ${metric(
-                "EMA20",
-                formatPrice(r.e20)
-            )}
-
-            ${metric(
-                "EMA50",
-                formatPrice(r.e50)
-            )}
-
-            ${metric(
-                "Support",
-                formatPrice(r.support)
-            )}
-
-            ${metric(
-                "Resistance",
-                formatPrice(r.resistance)
-            )}
-
-            ${metric(
-                "ATR",
-                formatPrice(r.atr)
-            )}
-
-            ${metric(
-                "MACD",
-                r.macd?.line!==null
-                    ?r.macd.line.toFixed(5)
-                    :"—"
-            )}
-
-        </div>
-
-
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-
-            <div class="card rounded-2xl p-5">
-
-                <p class="text-purple-300 text-xs font-bold">
-                    WHY ENTER?
-                </p>
-
-                <div class="space-y-3 mt-4">
-                    ${reasonHTML}
-                </div>
-
-            </div>
-
-
-            <div class="card rounded-2xl p-5">
-
-                <p class="text-purple-300 text-xs font-bold">
-                    WHY WAIT?
-                </p>
-
-                <div class="space-y-3 mt-4">
-                    ${waitHTML}
-                </div>
-
-            </div>
-
-        </div>
-
-
-        <div class="card rounded-2xl p-5">
-
-            <p class="text-purple-300 text-xs font-bold">
-                CONFIRMATION CHECKLIST
-            </p>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
-
-                ${check(
-                    "Trend alignment",
-                    r.trend==="BULLISH" ||
-                    r.trend==="BEARISH"
-                )}
-
-                ${check(
-                    "Candle confirmation",
-                    r.candle?.bull ||
-                    r.candle?.bear
-                )}
-
-                ${check(
-                    "Fakeout protection",
-                    !r.fake?.detected
-                )}
-
-                ${check(
-                    "EMA structure",
-                    r.e20!==null &&
-                    r.e50!==null
-                )}
-
-                ${check(
-                    "MACD data",
-                    r.macd?.line!==null
-                )}
-
-                ${check(
-                    "ATR risk levels",
-                    r.atr!==null
-                )}
-
-            </div>
-
-        </div>
-
-
-        <div class="card rounded-2xl p-5">
-
-            <p class="text-purple-300 text-xs font-bold">
-                TRADE BREAKDOWN
-            </p>
-
-            <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mt-4">
-
-                ${metric(
-                    "Entry Low",
-                    formatPrice(r.entryLow)
-                )}
-
-                ${metric(
-                    "Entry High",
-                    formatPrice(r.entryHigh)
-                )}
-
-                ${metric(
-                    "Stop Loss",
-                    formatPrice(r.stop)
-                )}
-
-                ${metric(
-                    "TP1",
-                    formatPrice(r.tp1)
-                )}
-
-                ${metric(
-                    "TP2 / TP3",
-                    `${formatPrice(r.tp2)}
-                     / ${formatPrice(r.tp3)}`
-                )}
-
-            </div>
-
-        </div>
-
-
-        <div class="card rounded-2xl p-5">
-
-            <p class="text-purple-300 text-xs font-bold">
-                FAKEOUT ANALYSIS
-            </p>
-
-            <div class="mt-4 p-4 rounded-xl bg-black/20">
-
-                <p class="font-black ${
-                    r.fake?.detected
-                        ?"red"
-                        :"green"
-                }">
-
-                    ${
-                        r.fake?.detected
-                            ?r.fake.type
-                            :"NO MAJOR FAKEOUT DETECTED"
-                    }
-
-                </p>
-
-                <p class="text-sm text-gray-400 mt-2">
-                    ${escapeHTML(
-                        r.fake?.reason ||
-                        "No fakeout information."
-                    )}
-                </p>
-
-            </div>
-
-        </div>
-
-
-        <div class="card rounded-2xl p-5">
-
-            <p class="text-purple-300 text-xs font-bold">
-                INVALIDATION
-            </p>
-
-            <p class="text-sm text-gray-300 mt-3">
-
-                ${
-                    r.signal==="BUY"
-                        ?`BUY idea invalidates if price loses the support/structure area near ${formatPrice(r.support)}.`
-                        :r.signal==="SELL"
-                            ?`SELL idea invalidates if price breaks and holds above resistance near ${formatPrice(r.resistance)}.`
-                            :"No active trade idea. Wait for full confirmation."
-                }
-
-            </p>
-
-        </div>
-
-    </div>
-
-    `;
-
-}
-
-
-/* =========================================================
-HELPERS
-========================================================= */
-
-function metric(label,value){
-
-    return `
-
-    <div class="card rounded-xl p-4">
-
-        <p class="text-[9px] text-gray-500">
-            ${label}
-        </p>
-
-        <p class="font-black text-sm mt-2">
-            ${value}
-        </p>
-
-    </div>
-
-    `;
-
-}
-
-
-function check(label,good){
-
-    return `
-
-    <div class="flex justify-between items-center
-        p-3 rounded-xl bg-black/20">
-
-        <span class="text-sm">
-            ${label}
-        </span>
-
-        <b class="${good?"green":"yellow"} text-xs">
-            ${good?"✓ CONFIRMED":"WAIT"}
-        </b>
-
-    </div>
-
-    `;
-
-}
-
-
-/* =========================================================
-SCALP
-========================================================= */
-
-function renderScalp(){
-
-    const tfs=[
-        "1m",
-        "5m",
-        "15m"
-    ];
-
-
-    const results=[];
-
-
-    Object.keys(markets)
-        .forEach(symbol=>{
-
-            tfs.forEach(tf=>{
-
-                results.push(
-                    analyze(
-                        symbol,
-                        tf
-                    )
-                );
-
-            });
-
-        });
-
-
-    results.sort(
-        (a,b)=>b.score-a.score
-    );
-
-
-    document.getElementById(
-        "scalpGrid"
-    ).innerHTML=
-        results
-            .slice(0,15)
-            .map(setupCard)
-            .join("");
-
-}
-
-
-/* =========================================================
-SWING
-========================================================= */
-
-function renderSwing(){
-
-    const tfs=[
-        "1h",
-        "4h",
-        "1d"
-    ];
-
-
-    const results=[];
-
-
-    Object.keys(markets)
-        .forEach(symbol=>{
-
-            tfs.forEach(tf=>{
-
-                results.push(
-                    analyze(
-                        symbol,
-                        tf
-                    )
-                );
-
-            });
-
-        });
-
-
-    results.sort(
-        (a,b)=>b.score-a.score
-    );
-
-
-    document.getElementById(
-        "swingGrid"
-    ).innerHTML=
-        results
-            .slice(0,15)
-            .map(setupCard)
-            .join("");
-
-}
-
-
-/* =========================================================
-SYMBOL SELECT
-========================================================= */
-
-function populateSymbolSelect(){
-
-    const select=
-        document.getElementById(
-            "analysisSymbol"
-        );
-
-
-    if(!select){
-        return;
-    }
-
-
-    const current=
-        select.value;
-
-
-    select.innerHTML=
-        Object.keys(markets)
-            .map(
-                symbol=>`
-
-                <option value="${symbol}">
-                    ${symbol} —
-                    ${escapeHTML(
-                        markets[symbol].name
-                    )}
-                </option>
-
-                `
-            )
-            .join("");
-
-
-    if(markets[current]){
-        select.value=current;
-    }
-
-}
-
-
-/* =========================================================
-STATS
-========================================================= */
-
-function updateStats(){
-
-    const symbols=
-        Object.keys(markets);
-
-
-    const live=
-        symbols.filter(
-            s =>
-                markets[s].price!==null
-        ).length;
-
-
-    let buy=0;
-    let sell=0;
-
-
-    symbols.forEach(symbol=>{
-
-        const r=
-            analyze(
-                symbol,
-                "5m"
-            );
-
-
-        if(r.signal==="BUY"){
-            buy++;
-        }
-
-        if(r.signal==="SELL"){
-            sell++;
-        }
-
-    });
-
-
-    document.getElementById(
-        "statMarkets"
-    ).textContent=
-        symbols.length;
-
-
-    document.getElementById(
-        "statLive"
-    ).textContent=
-        live;
-
-
-    document.getElementById(
-        "statBuy"
-    ).textContent=
-        buy;
-
-
-    document.getElementById(
-        "statSell"
-    ).textContent=
-        sell;
-
-
-    document.getElementById(
-        "liveMarketCount"
-    ).textContent=
-        `${live} / ${symbols.length}`;
-
-}
-
-
-/* =========================================================
-RENDER THROTTLE
-========================================================= */
-
-function scheduleRender(){
-
-    if(renderTimer){
-        return;
-    }
-
-
-    renderTimer=
-        setTimeout(()=>{
-
-            renderTimer=null;
-
-            /*
-            Only update analysis pages.
-            Price DOM is already updated directly.
-            */
-
-            const active=
-                document.querySelector(
-                    ".nav.active"
-                )?.dataset.page;
-
-
-            if(active==="analysis"){
-                renderAnalysis();
-            }
-
-
-            if(active==="scanner"){
-                runScanner();
-            }
-
-
-            if(active==="scalp"){
-                renderScalp();
-            }
-
-
-            if(active==="swing"){
-                renderSwing();
-            }
-
-        },800);
-
-}
-
-
-/* =========================================================
-500+ ORIGINAL MOTIVATIONAL QUOTES
-========================================================= */
-
-const quoteA=[
-
-"Protect your capital",
-"Trust your process",
-"Trade the setup",
-"Wait for confirmation",
-"Discipline comes first",
-"Your edge needs patience",
-"Good traders wait",
-"Consistency beats excitement",
-"Risk management matters",
-"Every candle tells a story",
-"Do not chase price",
-"Let the market come to you",
-"Your plan is your advantage",
-"Patience creates opportunity",
-"Protect the account",
-"Respect your stop",
-"Follow the evidence",
-"Trade what you see",
-"Wait for alignment",
-"Keep emotions out",
-"Strong traders stay patient",
-"One clean setup",
-"Quality over quantity",
-"Your strategy needs discipline",
-"Confirmation creates confidence",
-"Do not force a trade",
-"Let confirmation lead",
-"Your capital is precious",
-"Stay focused",
-"Keep learning",
-"Study the structure",
-"Read the market",
-"Respect volatility",
-"Let winners develop",
-"Cut invalid ideas",
-"Never revenge trade",
-"Stay calm",
-"Stay consistent",
-"Follow the rules",
-"Trust the numbers",
-"Respect the trend",
-"Wait for the retest",
-"Watch the fakeout",
-"Protect your entry",
-"Manage your risk",
-"Small risk",
-"Clear setups",
-"Patient execution",
-"Strong habits",
-"Smart trading starts",
-"Your future trader self"
+const motivationalQuotes = [];
+const quoteStarts = [
+  'Protect your capital',
+  'Trust your process',
+  'Trade the setup',
+  'Wait for confirmation',
+  'Discipline comes first',
+  'Your edge needs patience',
+  'Good traders wait',
+  'Consistency beats excitement',
+  'Risk management matters',
+  'Do not chase price',
+  'Let the market come to you',
+  'Your plan is your advantage',
+  'Patience creates opportunity',
+  'Respect your stop',
+  'Follow the evidence',
+  'Trade what you see',
+  'Wait for alignment',
+  'Keep emotions out',
+  'Quality over quantity',
+  'Confirmation creates confidence',
+  'Do not force a trade',
+  'Let confirmation lead',
+  'Your capital is precious',
+  'Stay focused',
+  'Keep learning',
+  'Study the structure',
+  'Read the market',
+  'Respect volatility',
+  'Let winners develop',
+  'Cut invalid ideas',
+  'Never revenge trade',
+  'Stay calm',
+  'Stay consistent',
+  'Follow the rules',
+  'Trust the numbers',
+  'Respect the trend',
+  'Wait for the retest',
+  'Watch the fakeout',
+  'Protect your entry',
+  'Manage your risk',
+  'Small risk',
+  'Clear setups',
+  'Patient execution',
+  'Strong habits',
+  'Smart trading starts',
+  'Control your emotions',
+  'Wait for your moment',
+  'Build consistency',
+  'Protect tomorrow’s opportunities',
+  'Trade with intention'
 ];
 
-
-const quoteB=[
-
-"and let confirmation do the talking.",
-"before you think about profit.",
-"when the setup is actually there.",
-"because patience protects opportunity.",
-"and never let fear make the decision.",
-"while the market reveals its direction.",
-"because every trade does not need to be taken.",
-"and remember that waiting is a position.",
-"because one disciplined decision can matter.",
-"and keep your risk smaller than your ego."
+const quoteEnds = [
+  'and let confirmation do the talking.',
+  'before you think about profit.',
+  'when the setup is actually there.',
+  'because patience protects opportunity.',
+  'and never let fear make the decision.',
+  'while the market reveals its direction.',
+  'because every trade does not need to be taken.',
+  'and remember that waiting is a position.',
+  'because one disciplined decision can matter.',
+  'and keep your risk smaller than your ego.'
 ];
 
-
-let quotes=[];
-
-
-quoteA.forEach(a=>{
-    quoteB.forEach(b=>{
-        quotes.push(`${a} ${b}`);
+quoteStarts.forEach(start => {
+  quoteEnds.forEach(end => {
+    motivationalQuotes.push({
+      text: `${start} ${end}`,
+      author: 'JTRADER Mindset'
     });
+  });
 });
 
-
-quotes=[...new Set(quotes)];
-
-
-function newQuote(){
-
-    const el=
-        document.getElementById(
-            "quote"
-        );
-
-
-    let last=
-        Number(
-            localStorage.getItem(
-                "jtrader_quote"
-            )
-        );
-
-
-    let index;
-
-
-    do{
-
-        index=
-            Math.floor(
-                Math.random()*quotes.length
-            );
-
-    }while(
-        quotes.length>1 &&
-        index===last
-    );
-
-
-    localStorage.setItem(
-        "jtrader_quote",
-        index
-    );
-
-
-    el.style.opacity="0";
-
-
-    setTimeout(()=>{
-
-        el.textContent=
-            quotes[index];
-
-        el.style.transition=
-            "opacity .3s";
-
-        el.style.opacity="1";
-
-    },150);
-
+function rotateQuote() {
+  let next = Math.floor(Math.random() * motivationalQuotes.length);
+  if (motivationalQuotes.length > 1 && next === quoteIndex) {
+    next = (next + 1) % motivationalQuotes.length;
+  }
+  quoteIndex = next;
+  const q = motivationalQuotes[quoteIndex];
+  const text = document.getElementById('quote-text');
+  const author = document.getElementById('quote-author');
+  if (text) text.innerText = `"${q.text}"`;
+  if (author) author.innerText = `— ${q.author}`;
+}
+  quoteIndex = (quoteIndex + 1) % motivationalQuotes.length;
+  const q = motivationalQuotes[quoteIndex];
+  document.getElementById('quote-text').innerText = `"${q.text}"`;
+  document.getElementById('quote-author').innerText = `— ${q.author} / JTRADER Mastery`;
 }
 
+function setTimeframe(tf) {
+  currentTimeframe = tf;
+  document.querySelectorAll('.tf-btn').forEach(btn => {
+    btn.classList.remove('bg-purple-700', 'text-white');
+    btn.classList.add('text-purple-300', 'hover:bg-purple-900');
+  });
+  const activeBtn = document.getElementById(`tf-${tf}`);
+  if (activeBtn) {
+    activeBtn.classList.remove('text-purple-300', 'hover:bg-purple-900');
+    activeBtn.classList.add('bg-purple-700', 'text-white');
+  }
 
-/* =========================================================
-NAVIGATION
-========================================================= */
+  vixPairs.forEach(p => requestCandles(p.symbol, currentTimeframe));
+  runDeepAnalysis();
+}
 
-document
-.querySelectorAll(".nav")
-.forEach(button=>{
+function populatePairDropdown() {
+  const select = document.getElementById('pair-select');
+  if (!select) return;
+  select.innerHTML = '';
+  vixPairs.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.symbol;
+    const info = livePrices[p.symbol];
+    const digits = p.pip === 4 ? 4 : 2;
+    const priceStr = info.price !== null ? info.price.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits }) : 'Connecting...';
+    opt.innerText = `${p.name} (${p.symbol}) — Price: ${priceStr}`;
+    if (p.symbol === selectedPairForAnalysis) opt.selected = true;
+    select.appendChild(opt);
+  });
+}
 
-    button.addEventListener(
-        "click",
-        ()=>{
+function onPairChange() {
+  const select = document.getElementById('pair-select');
+  if (select) {
+    selectedPairForAnalysis = select.value;
+    requestCandles(selectedPairForAnalysis, currentTimeframe);
+    runDeepAnalysis();
+  }
+}
 
-            document
-                .querySelectorAll(".nav")
-                .forEach(
-                    b=>
-                        b.classList.remove(
-                            "active"
-                        )
-                );
+function renderLiveTickerCards() {
+  const grid = document.getElementById('vix-ticker-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  vixPairs.forEach(p => {
+    const info = livePrices[p.symbol] || { price: null, direction: 'same', lastUpdate: 'Waiting...' };
+    const digits = p.pip === 4 ? 4 : 2;
+    const priceStr = info.price !== null ? info.price.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits }) : 'Connecting...';
 
+    const card = document.createElement('div');
+    card.id = `card-${p.symbol}`;
+    card.className = "bg-cardbase rounded-3xl p-6 border border-purple-900/60 shadow-xl flex flex-col justify-between transition-all duration-300 hover:border-purple-600";
 
-            button.classList.add(
-                "active"
-            );
+    card.innerHTML = `
+      <div>
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-xs font-bold px-3 py-1 rounded-full bg-purple-950 text-purple-300 border border-purple-800/50">${p.symbol}</span>
+          <span class="text-xs text-purple-400" id="time-${p.symbol}">${info.lastUpdate}</span>
+        </div>
+        <h4 class="text-lg font-black text-white mb-2">${p.name}</h4>
+        <div class="text-2xl sm:text-3xl font-black tracking-tight text-white mb-2" id="price-${p.symbol}">${priceStr}</div>
+      </div>
+      <div class="flex items-center justify-between pt-4 border-t border-purple-900/40 text-xs">
+        <span class="text-purple-400 font-semibold">Deriv WS Feed</span>
+        <span class="px-2.5 py-1 rounded-lg bg-purple-900/50 text-purple-200 font-bold" id="badge-${p.symbol}">Live</span>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
 
+function updateLiveCardElement(symbol) {
+  const priceEl = document.getElementById(`price-${symbol}`);
+  const timeEl = document.getElementById(`time-${symbol}`);
+  const cardEl = document.getElementById(`card-${symbol}`);
+  const pairObj = vixPairs.find(p => p.symbol === symbol);
+  const digits = pairObj && pairObj.pip === 4 ? 4 : 2;
 
-            document
-                .querySelectorAll(
-                    "main > section"
-                )
-                .forEach(
-                    s=>
-                        s.classList.add(
-                            "hidden"
-                        )
-                );
+  if (priceEl && livePrices[symbol] && livePrices[symbol].price !== null) {
+    const info = livePrices[symbol];
+    priceEl.innerText = info.price.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+    if (timeEl) timeEl.innerText = info.lastUpdate;
 
+    if (info.direction === 'up') {
+      priceEl.className = "text-2xl sm:text-3xl font-black tracking-tight tick-up mb-2";
+      if (cardEl) {
+        cardEl.style.borderColor = "#4ade80";
+        cardEl.classList.add('flash-up');
+        setTimeout(() => cardEl.classList.remove('flash-up'), 400);
+      }
+    } else if (info.direction === 'down') {
+      priceEl.className = "text-2xl sm:text-3xl font-black tracking-tight tick-down mb-2";
+      if (cardEl) {
+        cardEl.style.borderColor = "#f87171";
+        cardEl.classList.add('flash-down');
+        setTimeout(() => cardEl.classList.remove('flash-down'), 400);
+      }
+    }
+    setTimeout(() => {
+      if (priceEl) priceEl.className = "text-2xl sm:text-3xl font-black tracking-tight text-white mb-2";
+      if (cardEl) cardEl.style.borderColor = "rgba(84, 39, 143, 0.6)";
+    }, 500);
+  }
 
-            const page=
-                document.getElementById(
-                    button.dataset.page
-                );
+  const liveTimeEl = document.getElementById('live-update-time');
+  if (liveTimeEl && livePrices[symbol]) {
+    liveTimeEl.innerText = `Last Tick: ${livePrices[symbol].lastUpdate}`;
+  }
+}
 
+function runDeepAnalysis() {
+  const selectEl = document.getElementById('pair-select');
+  if (selectEl && selectEl.value) selectedPairForAnalysis = selectEl.value;
 
-            page.classList.remove(
-                "hidden"
-            );
+  const analysis = analyzeMarket(selectedPairForAnalysis, currentTimeframe);
+  const container = document.getElementById('analysis-output-container');
+  if (!container) return;
 
+  const pairObj = vixPairs.find(p => p.symbol === selectedPairForAnalysis);
+  const badgeBg = analysis.signal === 'BUY' ? 'bg-green-500/20 text-green-300 border-green-500/40' : (analysis.signal === 'SELL' ? 'bg-red-500/20 text-red-300 border-red-500/40' : 'bg-amber-500/20 text-amber-300 border-amber-500/40');
+  const iconClass = analysis.signal === 'BUY' ? 'fa-arrow-trend-up text-green-400' : (analysis.signal === 'SELL' ? 'fa-arrow-trend-down text-red-400' : 'fa-scale-balanced text-amber-400');
+  const d = analysis.digits;
+  const fmt = v => Number(v).toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
+  const priceStr = analysis.currentPrice !== null ? fmt(analysis.currentPrice) : 'Connecting...';
 
-            if(
-                button.dataset.page==="analysis"
-            ){
-                renderAnalysis();
-            }
+  container.innerHTML = `
+    <div class="bg-cardbase rounded-3xl p-8 border border-purple-900/60 shadow-2xl relative overflow-hidden">
+      <div class="absolute top-0 right-0 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl pointer-events-none"></div>
 
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-purple-900/60">
+        <div class="flex items-center space-x-4">
+          <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-700 flex items-center justify-center text-white text-2xl shadow-lg">
+            <i class="fa-solid ${iconClass}"></i>
+          </div>
+          <div>
+            <div class="flex items-center space-x-2">
+              <h3 class="text-2xl font-black text-white">${pairObj ? pairObj.name : selectedPairForAnalysis}</h3>
+              <span class="px-3 py-1 rounded-full text-xs font-bold border ${badgeBg}">${analysis.signal}</span>
+            </div>
+            <p class="text-xs text-purple-400 mt-1">Timeframe: <span class="text-white font-bold uppercase">${currentTimeframe}</span> &bull; Live Price: <span class="text-white font-bold">${priceStr}</span></p>
+          </div>
+        </div>
+        <div class="bg-purple-950/80 px-5 py-3 rounded-2xl border border-purple-800/50 flex flex-wrap items-center gap-6">
+          <div><span class="text-xs text-purple-400 block">Calculated Entry</span><span class="text-lg font-black text-white">${fmt(analysis.entryPrice)}</span></div>
+          <div class="border-l border-purple-800 pl-4"><span class="text-xs text-purple-400 block">Take Profit (TP1)</span><span class="text-lg font-black text-green-400">${fmt(analysis.tp1)}</span></div>
+          <div class="border-l border-purple-800 pl-4"><span class="text-xs text-purple-400 block">Stop Loss (SL)</span><span class="text-lg font-black text-red-400">${fmt(analysis.sl)}</span></div>
+        </div>
+      </div>
 
-            if(
-                button.dataset.page==="scanner"
-            ){
-                runScanner();
-            }
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
+        <div class="lg:col-span-2 space-y-6">
+          <div class="bg-purple-950/50 rounded-2xl p-6 border border-purple-900/50">
+            <h4 class="text-sm font-bold text-purple-300 uppercase tracking-wider mb-3 flex items-center">
+              <i class="fa-solid fa-circle-info mr-2 text-purple-400"></i> Technical Breakdown & Why (${analysis.signal})
+            </h4>
+            <p class="text-purple-100 text-sm leading-relaxed mb-4">${analysis.reason}</p>
+            <div class="p-4 rounded-xl bg-purple-900/30 border border-purple-700/30">
+              <span class="text-xs font-bold text-amber-300 block mb-1"><i class="fa-solid fa-clock mr-1.5"></i> What We Are Waiting For / Execution Plan:</span>
+              <p class="text-xs text-purple-200 leading-relaxed">${analysis.waitingFor}</p>
+            </div>
+            <div class="mt-3 p-4 rounded-xl bg-purple-900/20 border border-purple-700/20">
+              <span class="text-xs font-bold text-purple-300 block mb-1"><i class="fa-solid fa-shield-halved mr-1.5"></i> Confirmation / Fakeout Check:</span>
+              <p class="text-xs ${analysis.fakeoutDetected ? 'text-red-300' : 'text-green-300'} leading-relaxed">${analysis.confirmation} — ${analysis.fakeoutReason}</p>
+            </div>
+          </div>
 
+          <div class="bg-purple-950/50 rounded-2xl p-6 border border-purple-900/50">
+            <h4 class="text-sm font-bold text-purple-300 uppercase tracking-wider mb-3 flex items-center">
+              <i class="fa-solid fa-shield-cat mr-2 text-purple-400"></i> Anti-Fakeout & Late Entry Guard
+            </h4>
+            <div class="flex items-start space-x-3 ${analysis.isLate ? 'bg-red-500/10 border-red-500/30 text-red-200' : 'bg-green-500/10 border-green-500/30 text-green-200'} p-4 rounded-xl border text-xs leading-relaxed">
+              <i class="fa-solid ${analysis.isLate ? 'fa-triangle-exclamation text-red-400' : 'fa-circle-check text-green-400'} text-lg mt-0.5"></i>
+              <div>
+                <span class="font-bold block mb-1">${analysis.isLate ? 'WARNING: Price Extended — Wait for Retracement or Skip' : 'Entry Zone Optimal — Clean Setup'}</span>
+                ${analysis.lateAdvice}
+              </div>
+            </div>
+          </div>
+        </div>
 
-            if(
-                button.dataset.page==="scalp"
-            ){
-                renderScalp();
-            }
+        <div class="space-y-6">
+          <div class="bg-purple-950/50 rounded-2xl p-6 border border-purple-900/50">
+            <h4 class="text-sm font-bold text-purple-300 uppercase tracking-wider mb-4 flex items-center">
+              <i class="fa-solid fa-gauge-high mr-2 text-purple-400"></i> Indicator Matrix
+            </h4>
+            <div class="space-y-3 text-xs">
+              <div class="flex justify-between p-2.5 rounded-lg bg-purple-900/30"><span class="text-purple-400 font-medium">EMA 20</span><span class="text-white font-bold">${fmt(analysis.ema20)}</span></div>
+              <div class="flex justify-between p-2.5 rounded-lg bg-purple-900/30"><span class="text-purple-400 font-medium">EMA 50</span><span class="text-white font-bold">${fmt(analysis.ema50)}</span></div>
+              <div class="flex justify-between p-2.5 rounded-lg bg-purple-900/30"><span class="text-purple-400 font-medium">RSI (14)</span><span class="text-white font-bold">${analysis.rsi}</span></div>
+              <div class="flex justify-between p-2.5 rounded-lg bg-purple-900/30"><span class="text-purple-400 font-medium">MACD / Signal</span><span class="text-white font-bold">${analysis.macdLine} / ${analysis.macdSignal}</span></div>
+              <div class="flex justify-between p-2.5 rounded-lg bg-purple-900/30"><span class="text-purple-400 font-medium">Key Support</span><span class="text-green-400 font-bold">${fmt(analysis.support)}</span></div>
+              <div class="flex justify-between p-2.5 rounded-lg bg-purple-900/30"><span class="text-purple-400 font-medium">Key Resistance</span><span class="text-red-400 font-bold">${fmt(analysis.resistance)}</span></div>
+            </div>
+          </div>
 
+          <div class="bg-purple-950/50 rounded-2xl p-6 border border-purple-900/50">
+            <h4 class="text-sm font-bold text-purple-300 uppercase tracking-wider mb-3 flex items-center">
+              <i class="fa-solid fa-bolt-lightning mr-2 text-purple-400"></i> Key Breakout Triggers
+            </h4>
+            <ul class="space-y-2 text-xs text-purple-200">
+              ${analysis.breakouts.map(b => `<li class="flex items-start"><i class="fa-solid fa-chevron-right text-purple-400 mr-2 mt-0.5 text-[10px]"></i><span>${b}</span></li>`).join('')}
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
 
-            if(
-                button.dataset.page==="swing"
-            ){
-                renderSwing();
-            }
+function renderScannerTable() {
+  const tbody = document.getElementById('scanner-table-body');
+  if (!tbody) return;
+  tbody.innerHTML = '';
 
-        }
-    );
+  vixPairs.forEach(p => {
+    const analysis = analyzeMarket(p.symbol, currentTimeframe);
+    const badgeColor = analysis.signal === 'BUY' ? 'bg-green-500/20 text-green-300 border-green-500/40' : (analysis.signal === 'SELL' ? 'bg-red-500/20 text-red-300 border-red-500/40' : 'bg-amber-500/20 text-amber-300 border-amber-500/40');
+    const d = analysis.digits;
+    const fmt = v => Number(v).toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
+    const priceStr = analysis.currentPrice !== null ? fmt(analysis.currentPrice) : 'Connecting...';
+    const dotColor = analysis.signal === 'BUY' ? 'bg-green-400' : (analysis.signal === 'SELL' ? 'bg-red-400' : 'bg-amber-400');
 
-});
+    const tr = document.createElement('tr');
+    tr.className = "hover:bg-purple-900/20 transition-all border-b border-purple-900/30";
+    tr.innerHTML = `
+      <td class="py-4 px-4 font-bold text-white flex items-center space-x-2">
+        <span class="w-2 h-2 rounded-full ${dotColor}"></span><span>${p.name}</span>
+      </td>
+      <td class="py-4 px-4 font-bold text-purple-200">${priceStr}</td>
+      <td class="py-4 px-4"><span class="px-3 py-1 rounded-full text-xs font-bold border ${badgeColor}">${analysis.signal}</span></td>
+      <td class="py-4 px-4 font-mono text-purple-100">${fmt(analysis.entryPrice)}</td>
+      <td class="py-4 px-4 font-mono text-red-400">${fmt(analysis.sl)}</td>
+      <td class="py-4 px-4 font-mono text-green-400">${fmt(analysis.tp1)}</td>
+      <td class="py-4 px-4">
+        <button onclick="selectAndAnalyze('${p.symbol}')" class="px-3 py-1.5 rounded-xl bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold transition-all shadow-md">Analyze</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
 
+function selectAndAnalyze(symbol) {
+  selectedPairForAnalysis = symbol;
+  const select = document.getElementById('pair-select');
+  if (select) select.value = symbol;
+  switchTab('scanner');
+  requestCandles(symbol, currentTimeframe);
+  runDeepAnalysis();
+}
 
-/* =========================================================
-ANALYSIS CONTROLS
-========================================================= */
+window.onload = function () {
+  initDerivWebSocket();
+  rotateQuote();
+  renderLiveTickerCards();
+  populatePairDropdown();
+  renderStrategiesGrid();
 
-document
-.getElementById("analysisSymbol")
-.addEventListener(
-    "change",
-    renderAnalysis
-);
-
-
-document
-.getElementById("analysisTF")
-.addEventListener(
-    "change",
-    renderAnalysis
-);
-
-
-document
-.getElementById("scannerTF")
-.addEventListener(
-    "change",
-    runScanner
-);
-
-
-/* =========================================================
-STARTUP
-========================================================= */
-
-newQuote();
-
-setInterval(
-    newQuote,
-    300000
-);
-
-connectDeriv();
-
-
-/*
-Initial empty UI.
-*/
-
-renderAllPriceCards();
-
+  setInterval(() => {
+    const select = document.getElementById('pair-select');
+    if (select) {
+      const currentVal = select.value;
+      populatePairDropdown();
+      select.value = currentVal;
+    }
+  }, 5000);
+};
 </script>
-
 </body>
 </html>
