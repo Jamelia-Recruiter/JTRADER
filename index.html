@@ -1,940 +1,2454 @@
 <!DOCTYPE html>
 <html lang="en" class="dark">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JTRADER — Advanced Deriv VIX Technical Analysis Engine</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        darkBg: '#0b0f19',
-                        cardBg: '#121826',
-                        cardBorder: '#1e293b',
-                        accentGold: '#f59e0b',
-                        accentGreen: '#10b981',
-                        accentRed: '#ef4444',
-                    }
-                }
-            }
-        }
-    </script>
-    <style>
-        /* Custom scrollbar for clean tabular data */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #0b0f19; }
-        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: #334155; }
-        @keyframes pulse-slow {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
-        }
-        .animate-pulse-slow { animation: pulse-slow 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>JTRADER — Live Deriv VIX Analyzer</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config={
+  darkMode:"class",
+  theme:{
+    extend:{
+      colors:{
+        jpurple:{
+          50:"#f5f3ff",100:"#ede9fe",200:"#ddd6fe",300:"#c4b5fd",
+          400:"#a78bfa",500:"#8b5cf6",600:"#7c3aed",700:"#6d28d9",
+          800:"#5b21b6",900:"#4c1d95",950:"#2e1065"
+        },
+        night:"#080510",
+        panel:"#120b22",
+        panel2:"#190e2e"
+      }
+    }
+  }
+}
+</script>
+
+<link rel="stylesheet"
+href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+<style>
+*{box-sizing:border-box}
+body{
+  background:#080510;
+  color:#eee7ff;
+}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:#080510}
+::-webkit-scrollbar-thumb{background:#5b21b6;border-radius:10px}
+.card{
+  background:linear-gradient(145deg,#120b22,#190e2e);
+  border:1px solid rgba(124,58,237,.30);
+}
+.glow{
+  box-shadow:0 0 30px rgba(124,58,237,.18);
+}
+.pulse{
+  animation:pulse 2s infinite;
+}
+@keyframes pulse{
+  0%,100%{opacity:1}
+  50%{opacity:.55}
+}
+.flashUp{animation:flashUp .35s}
+.flashDown{animation:flashDown .35s}
+@keyframes flashUp{
+  from{background:rgba(34,197,94,.22)}
+  to{background:transparent}
+}
+@keyframes flashDown{
+  from{background:rgba(239,68,68,.22)}
+  to{background:transparent}
+}
+.bar{
+  height:7px;
+  border-radius:10px;
+  background:#24153d;
+  overflow:hidden;
+}
+.bar>span{
+  display:block;
+  height:100%;
+  border-radius:10px;
+  background:linear-gradient(90deg,#7c3aed,#c084fc);
+}
+.signalBuy{
+  color:#86efac;
+  background:rgba(34,197,94,.10);
+  border:1px solid rgba(34,197,94,.30);
+}
+.signalSell{
+  color:#fca5a5;
+  background:rgba(239,68,68,.10);
+  border:1px solid rgba(239,68,68,.30);
+}
+.signalWait{
+  color:#fcd34d;
+  background:rgba(245,158,11,.10);
+  border:1px solid rgba(245,158,11,.30);
+}
+.good{color:#86efac}
+.bad{color:#fca5a5}
+.warn{color:#fcd34d}
+.neutral{color:#c4b5fd}
+.tabActive{
+  background:#6d28d9!important;
+  color:white!important;
+}
+</style>
 </head>
-<body class="bg-darkBg text-slate-100 font-sans min-h-screen flex flex-col selection:bg-amber-500 selection:text-black">
-
-    <!-- Top Navigation / Status Header -->
-    <header class="bg-cardBg border-b border-cardBorder sticky top-0 z-50 px-4 py-3 flex flex-wrap items-center justify-between gap-4">
-        <div class="flex items-center space-x-3">
-            <div class="bg-gradient-to-r from-amber-500 to-yellow-600 text-black font-black px-3 py-1.5 rounded tracking-wider text-sm shadow-lg">
-                JTRADER
-            </div>
-            <div>
-                <h1 class="text-sm font-bold tracking-wide text-slate-200">ADVANCED DERIV VIX ENGINE</h1>
-                <p class="text-xs text-slate-400">Strict Live Analysis &bull; Zero Execution</p>
-            </div>
-        </div>
-
-        <!-- Connection & Data Health Status Bar -->
-        <div class="flex items-center space-x-3 text-xs">
-            <div id="connectionStatusBadge" class="flex items-center space-x-1.5 px-3 py-1 rounded-full bg-slate-800 border border-slate-700">
-                <span id="wsIndicator" class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping"></span>
-                <span id="wsText" class="font-medium text-slate-300">Connecting to Deriv WS...</span>
-            </div>
-            <div id="dataHealthBadge" class="hidden px-2.5 py-1 rounded bg-emerald-950/80 border border-emerald-800 text-emerald-400 font-medium">
-                LIVE FEED OK
-            </div>
-        </div>
-    </header>
-
-    <!-- Main Navigation Tabs -->
-    <nav class="bg-cardBorder/40 border-b border-cardBorder px-4 flex space-x-2 overflow-x-auto">
-        <button onclick="switchTab('home')" id="nav-home" class="tab-btn px-4 py-3 text-xs font-bold tracking-wider uppercase border-b-2 border-amber-500 text-amber-500 transition-colors">
-            Analysis & Signals
-        </button>
-        <button onclick="switchTab('scanner')" id="nav-scanner" class="tab-btn px-4 py-3 text-xs font-bold tracking-wider uppercase border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-colors">
-            Full VIX Scanner Matrix
-        </button>
-        <button onclick="switchTab('trades')" id="nav-trades" class="tab-btn px-4 py-3 text-xs font-bold tracking-wider uppercase border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-colors">
-            MTF & Structure Inspector
-        </button>
-    </nav>
-
-    <!-- Main Content Body -->
-    <main class="flex-1 p-4 max-w-7xl w-full mx-auto space-y-4">
-
-        <!-- ================= TAB 1: HOME (Deep Analysis & Setup Engine) ================= -->
-        <section id="tab-content-home" class="space-y-4">
-            
-            <!-- Control Bar: Instrument Selector & Mode Selector -->
-            <div class="bg-cardBg border border-cardBorder rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
-                <div class="flex flex-wrap items-center gap-3">
-                    <div>
-                        <label class="block text-[10px] uppercase font-bold text-slate-400 mb-1">Instrument</label>
-                        <select id="symbolSelect" onchange="onSymbolChange()" class="bg-slate-900 border border-slate-700 text-slate-200 text-xs font-bold rounded-lg px-3 py-2 outline-none focus:border-amber-500">
-                            <option value="R_10">Volatility 10 Index</option>
-                            <option value="R_25">Volatility 25 Index</option>
-                            <option value="R_50">Volatility 50 Index</option>
-                            <option value="R_75" selected>Volatility 75 Index</option>
-                            <option value="R_100">Volatility 100 Index</option>
-                            <option value="1HZ10V">Volatility 10 (1s) Index</option>
-                            <option value="1HZ25V">Volatility 25 (1s) Index</option>
-                            <option value="1HZ50V">Volatility 50 (1s) Index</option>
-                            <option value="1HZ75V">Volatility 75 (1s) Index</option>
-                            <option value="1HZ100V">Volatility 100 (1s) Index</option>
-                            <option value="JD10">Jump 10 Index</option>
-                            <option value="JD75">Jump 75 Index</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="block text-[10px] uppercase font-bold text-slate-400 mb-1">Analysis Mode</label>
-                        <div class="flex bg-slate-900 border border-slate-700 rounded-lg p-0.5">
-                            <button onclick="setAnalysisMode('scalp')" id="modeBtn-scalp" class="px-3 py-1.5 text-xs font-bold rounded-md bg-amber-500 text-black transition-all">Scalp Mode</button>
-                            <button onclick="setAnalysisMode('swing')" id="modeBtn-swing" class="px-3 py-1.5 text-xs font-bold rounded-md text-slate-400 hover:text-white transition-all">Swing Mode</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Live Price / Tick Feed Display -->
-                <div class="flex items-center space-x-6 bg-slate-900/80 border border-slate-800 px-4 py-2 rounded-lg">
-                    <div>
-                        <div class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Live Price</div>
-                        <div id="livePriceDisplay" class="text-base font-mono font-bold text-slate-100">0.00</div>
-                    </div>
-                    <div>
-                        <div class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Tick Change</div>
-                        <div id="liveChangeDisplay" class="text-xs font-mono font-bold text-slate-400">--</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ALL 7 TIMEFRAMES SELECTOR BAR -->
-            <div class="bg-cardBg border border-cardBorder rounded-xl p-3 flex flex-col gap-2">
-                <div class="flex items-center justify-between">
-                    <span class="text-xs font-bold text-slate-300 uppercase tracking-wider">Multi-Timeframe Engine Data Feed (7 Timeframes)</span>
-                    <span id="tfDataSyncStatus" class="text-[11px] text-amber-400 font-medium animate-pulse">Synchronizing candle feeds...</span>
-                </div>
-                <div id="timeframeSelectorBar" class="grid grid-cols-7 gap-2">
-                    <!-- Injected dynamically or structured below -->
-                    <button onclick="selectTimeframe('60')" id="tf-btn-60" class="tf-btn px-2 py-2 rounded bg-slate-900 border border-slate-700 text-center transition-all">
-                        <div class="text-[10px] text-slate-400 uppercase">1M</div>
-                        <div id="tf-status-60" class="text-xs font-bold text-slate-300">Syncing</div>
-                    </button>
-                    <button onclick="selectTimeframe('300')" id="tf-btn-300" class="tf-btn px-2 py-2 rounded bg-slate-900 border border-slate-700 text-center transition-all">
-                        <div class="text-[10px] text-slate-400 uppercase">5M</div>
-                        <div id="tf-status-300" class="text-xs font-bold text-slate-300">Syncing</div>
-                    </button>
-                    <button onclick="selectTimeframe('900')" id="tf-btn-900" class="tf-btn px-2 py-2 rounded bg-slate-900 border border-slate-700 text-center transition-all">
-                        <div class="text-[10px] text-slate-400 uppercase">15M</div>
-                        <div id="tf-status-900" class="text-xs font-bold text-slate-300">Syncing</div>
-                    </button>
-                    <button onclick="selectTimeframe('1800')" id="tf-btn-1800" class="tf-btn px-2 py-2 rounded bg-slate-900 border border-slate-700 text-center transition-all">
-                        <div class="text-[10px] text-slate-400 uppercase">30M</div>
-                        <div id="tf-status-1800" class="text-xs font-bold text-slate-300">Syncing</div>
-                    </button>
-                    <button onclick="selectTimeframe('3600')" id="tf-btn-3600" class="tf-btn px-2 py-2 rounded bg-slate-900 border border-slate-700 text-center transition-all">
-                        <div class="text-[10px] text-slate-400 uppercase">1H</div>
-                        <div id="tf-status-3600" class="text-xs font-bold text-slate-300">Syncing</div>
-                    </button>
-                    <button onclick="selectTimeframe('14400')" id="tf-btn-14400" class="tf-btn px-2 py-2 rounded bg-slate-900 border border-slate-700 text-center transition-all">
-                        <div class="text-[10px] text-slate-400 uppercase">4H</div>
-                        <div id="tf-status-14400" class="text-xs font-bold text-slate-300">Syncing</div>
-                    </button>
-                    <button onclick="selectTimeframe('86400')" id="tf-btn-86400" class="tf-btn px-2 py-2 rounded bg-slate-900 border border-slate-700 text-center transition-all">
-                        <div class="text-[10px] text-slate-400 uppercase">1D</div>
-                        <div id="tf-status-86400" class="text-xs font-bold text-slate-300">Syncing</div>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Main Dashboard Grid -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                
-                <!-- Left 2 Cols: Setup Signal Card, Entry Zone & Detailed Explanation -->
-                <div class="lg:col-span-2 space-y-4">
-                    
-                    <!-- Core Setup Status & Score Banner -->
-                    <div class="bg-cardBg border border-cardBorder rounded-xl p-5 relative overflow-hidden">
-                        <div class="absolute top-0 right-0 w-48 h-48 bg-amber-500/5 rounded-full blur-3xl pointer-events-none"></div>
-                        <div class="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-cardBorder">
-                            <div>
-                                <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">JTRADER Setup State</span>
-                                <div id="setupStatusBadge" class="text-2xl font-black tracking-wide mt-1 text-amber-400">SCANNING...</div>
-                            </div>
-                            <div class="text-right">
-                                <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Confirmation Score</span>
-                                <div id="confirmationScoreDisplay" class="text-2xl font-black font-mono text-slate-100">0 / 11</div>
-                            </div>
-                        </div>
-
-                        <!-- Entry Zone & Risk Parameters -->
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 py-4 border-b border-cardBorder">
-                            <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-800">
-                                <div class="text-[10px] uppercase font-bold text-slate-400">Entry Zone</div>
-                                <div id="entryZoneDisplay" class="text-sm font-mono font-bold text-slate-200 mt-1">Calculating...</div>
-                                <div id="entryZoneStatusBadge" class="inline-block px-2 py-0.5 mt-1 rounded text-[10px] font-bold bg-slate-800 text-slate-300">--</div>
-                            </div>
-                            <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-800">
-                                <div class="text-[10px] uppercase font-bold text-slate-400">Stop Loss (Invalidation)</div>
-                                <div id="stopLossDisplay" class="text-sm font-mono font-bold text-red-400 mt-1">--</div>
-                                <div class="text-[10px] text-slate-500 mt-1">Structure + ATR Guard</div>
-                            </div>
-                            <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-800">
-                                <div class="text-[10px] uppercase font-bold text-slate-400">Targets & R:R</div>
-                                <div id="targetsDisplay" class="text-xs font-mono font-bold text-emerald-400 mt-1">TP1: -- | TP2: --</div>
-                                <div id="rrDisplay" class="text-[10px] text-slate-400 mt-1 font-mono">Risk:Reward --</div>
-                            </div>
-                        </div>
-
-                        <!-- Why Enter / Why Wait & Candle Context -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
-                            <div class="space-y-2">
-                                <div class="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center space-x-1.5">
-                                    <span>✓ Why Enter / Conditions Met</span>
-                                </div>
-                                <ul id="whyEnterList" class="space-y-1.5 text-xs text-slate-300">
-                                    <li class="text-slate-500 italic">Analyzing market feeds...</li>
-                                </ul>
-                            </div>
-                            <div class="space-y-2">
-                                <div class="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center space-x-1.5">
-                                    <span>⚠️ Warnings & Why Wait</span>
-                                </div>
-                                <ul id="whyWaitList" class="space-y-1.5 text-xs text-slate-300">
-                                    <li class="text-slate-500 italic">Scanning for fakeouts and resistance clashes...</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Market Structure & Breakout/Fakeout State Card -->
-                    <div class="bg-cardBg border border-cardBorder rounded-xl p-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-800">
-                            <div class="text-[10px] uppercase font-bold text-slate-400">Market Structure</div>
-                            <div id="structureStateDisplay" class="text-sm font-bold text-slate-200 mt-1">Neutral / Range</div>
-                            <div id="bosChochDisplay" class="text-[11px] text-slate-400 mt-0.5">No recent BOS/CHOCH</div>
-                        </div>
-                        <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-800">
-                            <div class="text-[10px] uppercase font-bold text-slate-400">Breakout & Retest</div>
-                            <div id="breakoutStateDisplay" class="text-sm font-bold text-slate-200 mt-1">Scanning Level</div>
-                            <div id="fakeoutRiskDisplay" class="text-[11px] text-slate-400 mt-0.5">Fakeout Risk: Low</div>
-                        </div>
-                        <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-800">
-                            <div class="text-[10px] uppercase font-bold text-slate-400">Candle Pattern</div>
-                            <div id="candlePatternDisplay" class="text-sm font-bold text-slate-200 mt-1">Normal Candle</div>
-                            <div id="divergenceStateDisplay" class="text-[11px] text-slate-400 mt-0.5">No Divergence</div>
-                        </div>
-                    </div>
-
-                </div>
-
-                <!-- Right Col: MTF Alignment & 11-Point Checklist -->
-                <div class="space-y-4">
-                    
-                    <!-- Multi-Timeframe Alignment Matrix -->
-                    <div class="bg-cardBg border border-cardBorder rounded-xl p-4">
-                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 mb-3 flex items-center justify-between">
-                            <span>MTF Alignment Hierarchy</span>
-                            <span class="text-[10px] text-slate-500">1D &rarr; 1M</span>
-                        </h3>
-                        <div id="mtfMatrixContainer" class="space-y-2">
-                            <!-- Populated dynamically -->
-                            <div class="flex items-center justify-between p-2 rounded bg-slate-900 text-xs font-mono">
-                                <span class="text-slate-400">1D</span>
-                                <span class="text-slate-300">Loading...</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 11-Point Transparent Checklist -->
-                    <div class="bg-cardBg border border-cardBorder rounded-xl p-4">
-                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 mb-3">
-                            JTRADER 11-Point Checklist
-                        </h3>
-                        <div id="checklistContainer" class="space-y-1.5 text-xs">
-                            <!-- Populated dynamically -->
-                        </div>
-                    </div>
-
-                </div>
-
-            </div>
-
-        </section>
-
-        <!-- ================= TAB 2: VIX SCANNER MATRIX ================= -->
-        <section id="tab-content-scanner" class="hidden space-y-4">
-            <div class="bg-cardBg border border-cardBorder rounded-xl p-4">
-                <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
-                    <div>
-                        <h2 class="text-sm font-bold tracking-wide text-slate-200">Full VIX Instruments Scanner Matrix</h2>
-                        <p class="text-xs text-slate-400">Continuous background analysis across all 12 Deriv volatility & jump indices</p>
-                    </div>
-                    <button onclick="runFullScanner()" class="bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs px-4 py-2 rounded-lg transition-colors">
-                        Refresh Scanner Feed
-                    </button>
-                </div>
-
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="border-b border-cardBorder text-[10px] uppercase font-bold text-slate-400 bg-slate-900/50">
-                                <th class="p-3">Instrument</th>
-                                <th class="p-3">Price</th>
-                                <th class="p-3">Trend (MTF)</th>
-                                <th class="p-3">Setup State</th>
-                                <th class="p-3">Score</th>
-                                <th class="p-3">Fakeout Risk</th>
-                                <th class="p-3">Action Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="vixScannerTableBody" class="text-xs font-mono divide-y divide-cardBorder/50">
-                            <!-- Populated dynamically -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-        <!-- ================= TAB 3: MTF & STRUCTURE INSPECTOR ================= -->
-        <section id="tab-content-trades" class="hidden space-y-4">
-            <div class="bg-cardBg border border-cardBorder rounded-xl p-4 space-y-4">
-                <div>
-                    <h2 class="text-sm font-bold tracking-wide text-slate-200">Market Structure & Support/Resistance Inspector</h2>
-                    <p class="text-xs text-slate-400">Detailed breakdown of active swing points, order blocks, supply/demand zones, and MACD/RSI telemetry.</p>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-3">
-                        <h3 class="text-xs font-bold uppercase tracking-wider text-amber-400">Support & Resistance / S&D Zones</h3>
-                        <div id="srZonesContainer" class="space-y-2 text-xs font-mono">
-                            <div class="text-slate-500">Waiting for candle data calculation...</div>
-                        </div>
-                    </div>
-                    <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-3">
-                        <h3 class="text-xs font-bold uppercase tracking-wider text-amber-400">Indicator Telemetry (MACD & RSI)</h3>
-                        <div id="indicatorTelemetryContainer" class="space-y-2 text-xs font-mono">
-                            <div class="text-slate-500">Waiting for indicator computation...</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-    </main>
-
-    <!-- Footer Disclaimer -->
-    <footer class="bg-cardBg border-t border-cardBorder py-3 px-4 text-center text-[11px] text-slate-500">
-        JTRADER Engine &bull; Strictly Analytical &bull; No Auto-Trading, Manual Execution, or API Broker Orders &bull; Built for Deriv VIX Feeds
-    </footer>
-
-    <!-- Core Engine & WebSocket Application Logic -->
-    <script>
-        // --- CONFIGURATION & STATE ---
-        const APP_ID = 1089; // Public Deriv test/demo app_id or standard open ID
-        let ws = null;
-        let activeSymbol = "R_75";
-        let activeTimeframe = "300"; // Default 5M (in seconds)
-        let analysisMode = "scalp"; // 'scalp' or 'swing'
-        let isConnected = false;
-        let lastTickTime = Date.now();
-        let dataStaleCheckInterval = null;
-
-        // All 7 timeframes required: 1M, 5M, 15M, 30M, 1H, 4H, 1D
-        const TIMEFRAMES = [
-            { label: "1M", seconds: 60, key: "60" },
-            { label: "5M", seconds: 300, key: "300" },
-            { label: "15M", seconds: 900, key: "900" },
-            { label: "30M", seconds: 1800, key: "1800" },
-            { label: "1H", seconds: 3600, key: "3600" },
-            { label: "4H", seconds: 14400, key: "14400" },
-            { label: "1D", seconds: 86400, key: "86400" }
-        ];
-
-        // Store candle history per symbol and timeframe: candlesCache[symbol][tfKey] = array of {time, open, high, low, close}
-        let candlesCache = {};
-        let livePrices = {};
-        let scannerResults = {};
-
-        const VIX_SYMBOLS = [
-            { symbol: "R_10", name: "Volatility 10" },
-            { symbol: "R_25", name: "Volatility 25" },
-            { symbol: "R_50", name: "Volatility 50" },
-            { symbol: "R_75", name: "Volatility 75" },
-            { symbol: "R_100", name: "Volatility 100" },
-            { symbol: "1HZ10V", name: "Volatility 10 (1s)" },
-            { symbol: "1HZ25V", name: "Volatility 25 (1s)" },
-            { symbol: "1HZ50V", name: "Volatility 50 (1s)" },
-            { symbol: "1HZ75V", name: "Volatility 75 (1s)" },
-            { symbol: "1HZ100V", name: "Volatility 100 (1s)" },
-            { symbol: "JD10", name: "Jump 10" },
-            { symbol: "JD75", name: "Jump 75" }
-        ];
-
-        // --- INITIALIZATION ---
-        window.addEventListener('DOMContentLoaded', () => {
-            initWebSocket();
-            startStaleDataGuard();
-            setupScannerTable();
-        });
-
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.classList.remove('border-amber-500', 'text-amber-500');
-                btn.classList.add('border-transparent', 'text-slate-400');
-            });
-            document.getElementById(`nav-${tabId}`).classList.add('border-amber-500', 'text-amber-500');
-            document.getElementById(`nav-${tabId}`).classList.remove('border-transparent', 'text-slate-400');
-
-            ['home', 'scanner', 'trades'].forEach(id => {
-                const el = document.getElementById(`tab-content-${id}`);
-                if (id === tabId) {
-                    el.classList.remove('hidden');
-                } else {
-                    el.classList.add('hidden');
-                }
-            });
-
-            if (tabId === 'scanner') {
-                runFullScanner();
-            }
-        }
-
-        function setAnalysisMode(mode) {
-            analysisMode = mode;
-            document.getElementById('modeBtn-scalp').className = mode === 'scalp' ? 'px-3 py-1.5 text-xs font-bold rounded-md bg-amber-500 text-black transition-all' : 'px-3 py-1.5 text-xs font-bold rounded-md text-slate-400 hover:text-white transition-all';
-            document.getElementById('modeBtn-swing').className = mode === 'swing' ? 'px-3 py-1.5 text-xs font-bold rounded-md bg-amber-500 text-black transition-all' : 'px-3 py-1.5 text-xs font-bold rounded-md text-slate-400 hover:text-white transition-all';
-            
-            // Re-run analysis for active symbol
-            if (candlesCache[activeSymbol] && candlesCache[activeSymbol][activeTimeframe]) {
-                runCompleteAnalysis(activeSymbol);
-            }
-        }
-
-        function selectTimeframe(tfKey) {
-            activeTimeframe = tfKey;
-            document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('border-amber-500', 'bg-slate-800'));
-            const activeBtn = document.getElementById(`tf-btn-${tfKey}`);
-            if (activeBtn) {
-                activeBtn.classList.add('border-amber-500', 'bg-slate-800');
-            }
-            if (candlesCache[activeSymbol] && candlesCache[activeSymbol][activeTimeframe]) {
-                runCompleteAnalysis(activeSymbol);
-            }
-        }
-
-        function onSymbolChange() {
-            activeSymbol = document.getElementById('symbolSelect').value;
-            requestAllTimeframeCandles(activeSymbol);
-        }
-
-        // --- WEBSOCKET CONNECTION & DERIV API HANDLING ---
-        function initWebSocket() {
-            const wsUrl = `wss://ws.derivws.com/websockets/v3?app_id=${APP_ID}`;
-            ws = new WebSocket(wsUrl);
-
-            ws.onopen = () => {
-                isConnected = true;
-                updateConnectionStatus('connected', 'Connected to Deriv WS');
-                requestAllTimeframeCandles(activeSymbol);
-                subscribeTicks(activeSymbol);
-            };
-
-            ws.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                handleDerivMessage(data);
-            };
-
-            ws.onerror = (err) => {
-                isConnected = false;
-                updateConnectionStatus('error', 'WebSocket Error');
-            };
-
-            ws.onclose = () => {
-                isConnected = false;
-                updateConnectionStatus('disconnected', 'Disconnected. Reconnecting...');
-                setTimeout(initWebSocket, 4000);
-            };
-        }
-
-        function updateConnectionStatus(state, text) {
-            const indicator = document.getElementById('wsIndicator');
-            const wsText = document.getElementById('wsText');
-            const healthBadge = document.getElementById('dataHealthBadge');
-
-            wsText.innerText = text;
-            if (state === 'connected') {
-                indicator.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500';
-                healthBadge.classList.remove('hidden');
-            } else if (state === 'error') {
-                indicator.className = 'w-2.5 h-2.5 rounded-full bg-red-500';
-                healthBadge.classList.add('hidden');
-            } else {
-                indicator.className = 'w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping';
-                healthBadge.classList.add('hidden');
-            }
-        }
-
-        function requestAllTimeframeCandles(symbol) {
-            if (!ws || ws.readyState !== WebSocket.OPEN) return;
-            
-            // Request historical candles for all 7 timeframes
-            TIMEFRAMES.forEach(tf => {
-                ws.send(JSON.stringify({
-                    ticks_history: symbol,
-                    adjust_start_time: 1,
-                    count: 150,
-                    end: "latest",
-                    granularity: tf.seconds,
-                    style: "candles"
-                }));
-            });
-
-            subscribeTicks(symbol);
-        }
-
-        function subscribeTicks(symbol) {
-            ws.send(JSON.stringify({ forgets_all: "ticks" }));
-            ws.send(JSON.stringify({ ticks: symbol }));
-        }
-
-        function handleDerivMessage(data) {
-            if (data.msg_type === 'candles') {
-                const symbol = data.echo_req.ticks_history;
-                const granularity = String(data.echo_req.granularity);
-                const rawCandles = data.candles;
-
-                if (!candlesCache[symbol]) candlesCache[symbol] = {};
-                candlesCache[symbol][granularity] = rawCandles.map(c => ({
-                    time: c.epoch,
-                    open: parseFloat(c.open),
-                    high: parseFloat(c.high),
-                    low: parseFloat(c.low),
-                    close: parseFloat(c.close)
-                }));
-
-                // Update UI status for timeframe
-                const tfStatus = document.getElementById(`tf-status-${granularity}`);
-                if (tfStatus) {
-                    tfStatus.innerText = `${rawCandles.length} Candles`;
-                    tfStatus.className = 'text-xs font-bold text-emerald-400';
-                }
-
-                if (symbol === activeSymbol) {
-                    runCompleteAnalysis(activeSymbol);
-                }
-            }
-            else if (data.msg_type === 'tick') {
-                lastTickTime = Date.now();
-                const tick = data.tick;
-                const symbol = tick.symbol;
-                const price = tick.quote;
-                
-                livePrices[symbol] = price;
-
-                if (symbol === activeSymbol) {
-                    document.getElementById('livePriceDisplay').innerText = price.toFixed(2);
-                    // Update latest candle close in cache
-                    if (candlesCache[symbol] && candlesCache[symbol][activeTimeframe]) {
-                        const candles = candlesCache[symbol][activeTimeframe];
-                        if (candles.length > 0) {
-                            candles[candles.length - 1].close = price;
-                            if (price > candles[candles.length - 1].high) candles[candles.length - 1].high = price;
-                            if (price < candles[candles.length - 1].low) candles[candles.length - 1].low = price;
-                            runCompleteAnalysis(activeSymbol);
-                        }
-                    }
-                }
-            }
-        }
-
-        function startStaleDataGuard() {
-            dataStaleCheckInterval = setInterval(() => {
-                const now = Date.now();
-                if (now - lastTickTime > 12000) {
-                    document.getElementById('dataHealthBadge').className = 'px-2.5 py-1 rounded bg-red-950/80 border border-red-800 text-red-400 font-medium';
-                    document.getElementById('dataHealthBadge').innerText = '🔴 DATA STALE — DO NOT ANALYZE';
-                } else {
-                    document.getElementById('dataHealthBadge').className = 'px-2.5 py-1 rounded bg-emerald-950/80 border border-emerald-800 text-emerald-400 font-medium';
-                    document.getElementById('dataHealthBadge').innerText = 'LIVE FEED OK';
-                }
-            }, 3000);
-        }
-
-        // --- ANALYTICAL ENGINES ---
-
-        function calculateEMA(data, period) {
-            let k = 2 / (period + 1);
-            let emaArray = [];
-            let sum = 0;
-            for (let i = 0; i < data.length; i++) {
-                if (i < period) {
-                    sum += data[i];
-                    emaArray.push(sum / (i + 1));
-                } else {
-                    let val = (data[i] * k) + (emaArray[i - 1] * (1 - k));
-                    emaArray.push(val);
-                }
-            }
-            return emaArray;
-        }
-
-        function calculateRSI(closes, period = 14) {
-            let gains = 0;
-            let losses = 0;
-            for (let i = 1; i <= period && i < closes.length; i++) {
-                let diff = closes[i] - closes[i - 1];
-                if (diff >= 0) gains += diff;
-                else losses -= diff;
-            }
-            let avgGain = gains / period;
-            let avgLoss = losses / period;
-            let rsiArray = new Array(closes.length).fill(50);
-
-            for (let i = period + 1; i < closes.length; i++) {
-                let diff = closes[i] - closes[i - 1];
-                let gain = diff >= 0 ? diff : 0;
-                let loss = diff < 0 ? -diff : 0;
-                avgGain = (avgGain * (period - 1) + gain) / period;
-                avgLoss = (avgLoss * (period - 1) + loss) / period;
-                if (avgLoss === 0) {
-                    rsiArray[i] = 100;
-                } else {
-                    let rs = avgGain / avgLoss;
-                    rsiArray[i] = 100 - (100 / (1 + rs));
-                }
-            }
-            return rsiArray;
-        }
-
-        function calculateMACD(closes) {
-            let ema12 = calculateEMA(closes, 12);
-            let ema26 = calculateEMA(closes, 26);
-            let macdLine = [];
-            for (let i = 0; i < closes.length; i++) {
-                macdLine.push(ema12[i] - ema26[i]);
-            }
-            let signalLine = calculateEMA(macdLine, 9);
-            let histogram = [];
-            for (let i = 0; i < closes.length; i++) {
-                histogram.push(macdLine[i] - signalLine[i]);
-            }
-            return { macdLine, signalLine, histogram };
-        }
-
-        function identifyMarketStructure(candles) {
-            if (!candles || candles.length < 10) return { trend: "Neutral", structure: "Consolidation", bos: "None" };
-            let recent = candles.slice(-20);
-            let highs = recent.map(c => c.high);
-            let lows = recent.map(c => c.low);
-
-            let lastHigh = Math.max(...highs);
-            let lastLow = Math.min(...lows);
-            let currentClose = recent[recent.length - 1].close;
-
-            let prevHighs = highs.slice(0, 10);
-            let prevLowS = lows.slice(0, 10);
-            let maxPrevHigh = Math.max(...prevHighs);
-            let minPrevLow = Math.min(...prevLowS);
-
-            let structure = "Consolidation";
-            let trend = "Neutral";
-            let bos = "None";
-
-            if (lastHigh > maxPrevHigh && lastLow >= minPrevLow) {
-                trend = "Bullish";
-                structure = "Higher High / Higher Low (HH/HL)";
-                bos = "Bullish BOS Confirmed";
-            } else if (lastLow < minPrevLow && lastHigh <= maxPrevHigh) {
-                trend = "Bearish";
-                structure = "Lower Low / Lower High (LL/LH)";
-                bos = "Bearish BOS Confirmed";
-            }
-
-            return { trend, structure, bos };
-        }
-
-        function detectCandlePattern(c) {
-            let body = Math.abs(c.close - c.open);
-            let totalRange = c.high - c.low;
-            if (totalRange === 0) return { pattern: "Normal", weight: 0 };
-
-            let upperWick = c.high - Math.max(c.open, c.close);
-            let lowerWick = Math.min(c.open, c.close) - c.low;
-
-            if (lowerWick > body * 2 && upperWick < body * 0.5) {
-                return { pattern: "Hammer / Rejection", weight: 1 };
-            }
-            if (upperWick > body * 2 && lowerWick < body * 0.5) {
-                return { pattern: "Shooting Star / Rejection", weight: -1 };
-            }
-            if (body / totalRange > 0.6) {
-                return c.close > c.open ? { pattern: "Strong Bullish Candle", weight: 1 } : { pattern: "Strong Bearish Candle", weight: -1 };
-            }
-            return { pattern: "Normal Candle", weight: 0 };
-        }
-
-        function checkFakeoutAndBreakout(candles) {
-            if (!candles || candles.length < 15) return { breakout: "Scanning", fakeoutRisk: "Low" };
-            let last = candles[candles.length - 1];
-            let prev = candles[candles.length - 2];
-            let recentHighs = Math.max(...candles.slice(-15, -1).map(c => c.high));
-            let recentLows = Math.min(...candles.slice(-15, -1).map(c => c.low));
-
-            if (last.close > recentHighs && prev.close <= recentHighs) {
-                return { breakout: "Confirmed Breakout (Resistance Broken)", fakeoutRisk: "Low" };
-            } else if (last.close < recentHighs && prev.close > recentHighs) {
-                return { breakout: "Failed Breakout", fakeoutRisk: "High (Bearish Fakeout)" };
-            }
-
-            if (last.close < recentLows && prev.close >= recentLows) {
-                return { breakout: "Confirmed Breakdown (Support Broken)", fakeoutRisk: "Low" };
-            } else if (last.close > recentLows && prev.close < recentLows) {
-                return { breakout: "Failed Breakdown", fakeoutRisk: "High (Bullish Fakeout)" };
-            }
-
-            return { breakout: "Inside Range / Approaching Level", fakeoutRisk: "Medium" };
-        }
-
-        // --- FULL COMPREHENSIVE ANALYSIS RUNNER ---
-        function runCompleteAnalysis(symbol) {
-            const symbolCandles = candlesCache[symbol];
-            if (!symbolCandles) return;
-
-            // 1. Multi-Timeframe Alignment
-            let mtfResults = {};
-            let bullishCount = 0;
-            let bearishCount = 0;
-
-            TIMEFRAMES.forEach(tf => {
-                const cList = symbolCandles[tf.key];
-                if (cList && cList.length > 10) {
-                    const st = identifyMarketStructure(cList);
-                    mtfResults[tf.key] = st.trend;
-                    if (st.trend === "Bullish") bullishCount++;
-                    else if (st.trend === "Bearish") bearishCount++;
-                } else {
-                    mtfResults[tf.key] = "Neutral";
-                }
-            });
-
-            // Update MTF alignment UI
-            let mtfHtml = "";
-            TIMEFRAMES.forEach(tf => {
-                let trend = mtfResults[tf.key];
-                let color = trend === "Bullish" ? "text-emerald-400 bg-emerald-950/40 border-emerald-900" : trend === "Bearish" ? "text-red-400 bg-red-950/40 border-red-900" : "text-slate-400 bg-slate-900 border-slate-800";
-                mtfHtml += `<div class="flex items-center justify-between p-2 rounded border ${color} text-xs font-mono">
-                    <span class="font-bold">${tf.label}</span>
-                    <span class="uppercase font-semibold">${trend}</span>
-                </div>`;
-            });
-            document.getElementById('mtfMatrixContainer').innerHTML = mtfHtml;
-
-            // 2. Analyze Active Timeframe
-            const candles = symbolCandles[activeTimeframe];
-            if (!candles || candles.length < 30) return;
-
-            const closes = candles.map(c => c.close);
-            const currentPrice = closes[closes.length - 1];
-            const structure = identifyMarketStructure(candles);
-            const rsi = calculateRSI(closes, 14);
-            const macd = calculateMACD(closes);
-            const breakoutCheck = checkFakeoutAndBreakout(candles);
-            const candlePattern = detectCandlePattern(candles[candles.length - 1]);
-
-            let currentRSI = rsi[rsi.length - 1];
-            let prevRSI = rsi[rsi.length - 2];
-            let rsiTrend = currentRSI > prevRSI ? "Rising" : "Falling";
-
-            let currentMacdHist = macd.histogram[macd.histogram.length - 1];
-            let prevMacdHist = macd.histogram[macd.histogram.length - 2];
-            let macdExp = currentMacdHist > prevMacdHist ? "Expanding Positive" : "Contracting / Weakening";
-
-            // 3. 11-Point Confirmation Score Calculation
-            let confirmations = 0;
-            let checks = [];
-
-            // 1. Trend
-            let trendOk = structure.trend === "Bullish";
-            if (trendOk) confirmations++;
-            checks.push({ name: "Trend Alignment", pass: trendOk });
-
-            // 2. Structure
-            let structOk = structure.bos.includes("BOS");
-            if (structOk) confirmations++;
-            checks.push({ name: "Market Structure (BOS)", pass: structOk });
-
-            // 3. S/R Test
-            let srOk = breakoutCheck.breakout.includes("Confirmed");
-            if (srOk) confirmations++;
-            checks.push({ name: "Support / Resistance Level", pass: srOk });
-
-            // 4. Momentum
-            let momOk = currentMacdHist > 0;
-            if (momOk) confirmations++;
-            checks.push({ name: "MACD Momentum Positive", pass: momOk });
-
-            // 5. RSI Level & Direction
-            let rsiOk = currentRSI > 50 && rsiTrend === "Rising";
-            if (rsiOk) confirmations++;
-            checks.push({ name: "RSI Momentum (>50 & Rising)", pass: rsiOk });
-
-            // 6. MACD Crossover / Expansion
-            let macdOk = currentMacdHist > prevMacdHist;
-            if (macdOk) confirmations++;
-            checks.push({ name: "MACD Histogram Expansion", pass: macdOk });
-
-            // 7. Candle Confirmation
-            let candleOk = candlePattern.weight > 0;
-            if (candleOk) confirmations++;
-            checks.push({ name: "Candle Confirmation Pattern", pass: candleOk });
-
-            // 8. Breakout Valid
-            let boValidOk = breakoutCheck.fakeoutRisk.includes("Low");
-            if (boValidOk) confirmations++;
-            checks.push({ name: "Breakout Validation", pass: boValidOk });
-
-            // 9. Retest Holding
-            let retestOk = breakoutCheck.breakout.includes("Breakout");
-            if (retestOk) confirmations++;
-            checks.push({ name: "Retest & Follow-Through", pass: retestOk });
-
-            // 10. Fakeout Check Clear
-            let fakeoutClear = !breakoutCheck.fakeoutRisk.includes("High");
-            if (fakeoutClear) confirmations++;
-            checks.push({ name: "Fakeout Risk Check Clear", pass: fakeoutClear });
-
-            // 11. MTF Alignment
-            let mtfAligned = bullishCount >= 5;
-            if (mtfAligned) confirmations++;
-            checks.push({ name: "Multi-Timeframe Alignment", pass: mtfAligned });
-
-            // Render 11-Point Checklist UI
-            let checklistHtml = "";
-            checks.forEach(chk => {
-                checklistHtml += `<div class="flex items-center justify-between p-1.5 rounded bg-slate-900/60">
-                    <span class="text-slate-300">${chk.name}</span>
-                    <span class="${chk.pass ? 'text-emerald-400 font-bold' : 'text-slate-500'}">${chk.pass ? '✓ PASS' : '✗ WAIT'}</span>
-                </div>`;
-            });
-            document.getElementById('checklistContainer').innerHTML = checklistHtml;
-            document.getElementById('confirmationScoreDisplay').innerText = `${confirmations} / 11`;
-
-            // 4. Setup State & Entry Zone Calculation
-            let setupState = "WATCH & WAIT";
-            let badgeColor = "text-amber-400";
-            if (confirmations >= 9 && fakeoutClear) {
-                setupState = "CONFIRMED SETUP (BUY)";
-                badgeColor = "text-emerald-400";
-            } else if (confirmations <= 3) {
-                setupState = "INVALIDATED / STAND ASIDE";
-                badgeColor = "text-red-400";
-            }
-
-            document.getElementById('setupStatusBadge').innerText = setupState;
-            document.getElementById('setupStatusBadge').className = `text-2xl font-black tracking-wide mt-1 ${badgeColor}`;
-
-            // Entry Zone & SL / TP
-            let atr = 1.5; // Estimated ATR buffer
-            let idealEntry = currentPrice;
-            let stopLoss = currentPrice - (atr * 2.5);
-            let tp1 = currentPrice + (atr * 3.5);
-            let tp2 = currentPrice + (atr * 6.0);
-            let rr = ((tp1 - currentPrice) / (currentPrice - stopLoss)).toFixed(1);
-
-            document.getElementById('entryZoneDisplay').innerText = `${(currentPrice - 0.5).toFixed(2)} – ${(currentPrice + 0.5).toFixed(2)}`;
-            document.getElementById('entryZoneStatusBadge').innerText = "🟢 In Zone";
-            document.getElementById('stopLossDisplay').innerText = stopLoss.toFixed(2);
-            document.getElementById('targetsDisplay').innerText = `TP1: ${tp1.toFixed(2)} | TP2: ${tp2.toFixed(2)}`;
-            document.getElementById('rrDisplay').innerText = `Risk:Reward 1 : ${rr}`;
-
-            // Structure & Fakeout displays
-            document.getElementById('structureStateDisplay').innerText = structure.structure;
-            document.getElementById('bosChochDisplay').innerText = structure.bos;
-            document.getElementById('breakoutStateDisplay').innerText = breakoutCheck.breakout;
-            document.getElementById('fakeoutRiskDisplay').innerText = `Fakeout Risk: ${breakoutCheck.fakeoutRisk}`;
-            document.getElementById('candlePatternDisplay').innerText = candlePattern.pattern;
-            document.getElementById('divergenceStateDisplay').innerText = `RSI: ${currentRSI.toFixed(1)} (${rsiTrend})`;
-
-            // Why Enter / Why Wait Explanations
-            let whyEnterHtml = "";
-            let whyWaitHtml = "";
-
-            if (trendOk) whyEnterHtml += `<li>✓ Higher-timeframe trend is bullish</li>`;
-            else whyWaitHtml += `<li>✗ Trend alignment is mixed or bearish</li>`;
-
-            if (momOk) whyEnterHtml += `<li>✓ MACD momentum is positive and expanding</li>`;
-            else whyWaitHtml += `<li>✗ MACD momentum is weak or contracting</li>`;
-
-            if (fakeoutClear) whyEnterHtml += `<li>✓ Fakeout risk is low; structure is holding</li>`;
-            else whyWaitHtml += `<li>⚠️ High fakeout risk detected at resistance</li>`;
-
-            if (rsiOk) whyEnterHtml += `<li>✓ RSI is strong (${currentRSI.toFixed(1)}) and rising</li>`;
-            else whyWaitHtml += `<li>✗ RSI momentum is lagging or overextended</li>`;
-
-            document.getElementById('whyEnterList').innerHTML = whyEnterHtml || `<li class="text-slate-500">Waiting for strict confluence...</li>`;
-            document.getElementById('whyWaitList').innerHTML = whyWaitHtml || `<li class="text-slate-500">No major warnings; setup is clean.</li>`;
-
-            // S&D and Telemetry Inspector tabs
-            document.getElementById('srZonesContainer').innerHTML = `
-                <div class="flex justify-between"><span>Major Support:</span><span class="text-emerald-400">${(currentPrice * 0.985).toFixed(2)}</span></div>
-                <div class="flex justify-between"><span>Major Resistance:</span><span class="text-red-400">${(currentPrice * 1.015).toFixed(2)}</span></div>
-                <div class="flex justify-between"><span>Demand Zone:</span><span class="text-slate-200">${(currentPrice * 0.99).toFixed(2)} - ${(currentPrice * 0.993).toFixed(2)}</span></div>
-            `;
-
-            document.getElementById('indicatorTelemetryContainer').innerHTML = `
-                <div class="flex justify-between"><span>RSI (14):</span><span class="text-slate-200">${currentRSI.toFixed(2)} (${rsiTrend})</span></div>
-                <div class="flex justify-between"><span>MACD Hist:</span><span class="text-slate-200">${currentMacdHist.toFixed(4)}</span></div>
-                <div class="flex justify-between"><span>EMA 12 / 26:</span><span class="text-slate-200">Aligned</span></div>
-            `;
-        }
-
-        // --- FULL VIX SCANNER MATRIX ---
-        function setupScannerTable() {
-            let tbody = document.getElementById('vixScannerTableBody');
-            let html = "";
-            VIX_SYMBOLS.forEach(item => {
-                html += `<tr id="scanner-row-${item.symbol}" class="hover:bg-slate-900/40 transition-colors">
-                    <td class="p-3 font-bold text-slate-200">${item.name}</td>
-                    <td id="scan-price-${item.symbol}" class="p-3 text-slate-300">--</td>
-                    <td id="scan-trend-${item.symbol}" class="p-3 text-slate-400">Scanning</td>
-                    <td id="scan-setup-${item.symbol}" class="p-3 text-amber-400">Watch</td>
-                    <td id="scan-score-${item.symbol}" class="p-3 font-bold text-slate-200">--/11</td>
-                    <td id="scan-fakeout-${item.symbol}" class="p-3 text-slate-300">Low</td>
-                    <td id="scan-status-${item.symbol}" class="p-3 text-slate-400">Waiting</td>
-                </tr>`;
-            });
-            tbody.innerHTML = html;
-        }
-
-        function runFullScanner() {
-            VIX_SYMBOLS.forEach(item => {
-                // Simulate robust scanning metrics across all instruments based on cache or live prices
-                const price = livePrices[item.symbol] || (1000 + Math.random() * 500);
-                document.getElementById(`scan-price-${item.symbol}`).innerText = price.toFixed(2);
-                document.getElementById(`scan-trend-${item.symbol}`).innerText = Math.random() > 0.4 ? "Bullish" : "Bearish";
-                document.getElementById(`scan-score-${item.symbol}`).innerText = `${Math.floor(7 + Math.random() * 4)} / 11`;
-                document.getElementById(`scan-setup-${item.symbol}`).innerText = Math.random() > 0.5 ? "BUY WATCH" : "SELL WATCH";
-                document.getElementById(`scan-fakeout-${item.symbol}`).innerText = Math.random() > 0.7 ? "Medium" : "Low";
-                document.getElementById(`scan-status-${item.symbol}`).innerHTML = `<span class="px-2 py-0.5 rounded bg-amber-950/60 text-amber-400 text-[10px] font-bold">Waiting</span>`;
-            });
-        }
-    </script>
+
+<body class="min-h-screen">
+
+<!-- HEADER -->
+<header class="sticky top-0 z-50 bg-[#10091d]/95 backdrop-blur-xl border-b border-purple-900/50">
+<div class="max-w-7xl mx-auto px-4 py-4">
+
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+
+<div class="flex items-center gap-3">
+<div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-700 flex items-center justify-center text-white text-xl shadow-lg">
+<i class="fa-solid fa-chart-line"></i>
+</div>
+
+<div>
+<h1 class="text-xl font-black tracking-wider">
+JTRADER
+</h1>
+<p class="text-xs text-purple-400">
+Live Deriv VIX Market Analysis Engine
+</p>
+</div>
+</div>
+
+<div class="flex items-center gap-3">
+<div id="connectionBadge"
+class="px-4 py-2 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-bold">
+<i class="fa-solid fa-circle mr-1 pulse"></i>
+Connecting...
+</div>
+
+<div id="dataAge"
+class="hidden sm:block text-xs text-purple-400">
+Data: --
+</div>
+</div>
+
+</div>
+
+<nav class="mt-4 flex gap-2 overflow-x-auto">
+<button onclick="showTab('dashboard')" id="tabBtn-dashboard"
+class="tabActive px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap">
+<i class="fa-solid fa-house mr-1"></i> Dashboard
+</button>
+
+<button onclick="showTab('scanner')" id="tabBtn-scanner"
+class="px-4 py-2 rounded-xl text-xs font-bold text-purple-300 hover:bg-purple-900/40 whitespace-nowrap">
+<i class="fa-solid fa-radar mr-1"></i> Scanner
+</button>
+
+<button onclick="showTab('analysis')" id="tabBtn-analysis"
+class="px-4 py-2 rounded-xl text-xs font-bold text-purple-300 hover:bg-purple-900/40 whitespace-nowrap">
+<i class="fa-solid fa-magnifying-glass-chart mr-1"></i> Deep Analysis
+</button>
+
+<button onclick="showTab('scalp')" id="tabBtn-scalp"
+class="px-4 py-2 rounded-xl text-xs font-bold text-purple-300 hover:bg-purple-900/40 whitespace-nowrap">
+<i class="fa-solid fa-bolt mr-1"></i> Scalp
+</button>
+
+<button onclick="showTab('swing')" id="tabBtn-swing"
+class="px-4 py-2 rounded-xl text-xs font-bold text-purple-300 hover:bg-purple-900/40 whitespace-nowrap">
+<i class="fa-solid fa-chart-line mr-1"></i> Swing
+</button>
+</nav>
+
+</div>
+</header>
+
+<main class="max-w-7xl mx-auto px-4 py-6">
+
+<!-- =========================================================
+DASHBOARD
+========================================================= -->
+<section id="page-dashboard" class="space-y-6">
+
+<div class="card glow rounded-3xl p-7 relative overflow-hidden">
+<div class="absolute -right-20 -top-20 w-72 h-72 bg-purple-600/10 rounded-full blur-3xl"></div>
+
+<div class="relative">
+<div class="inline-flex px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-bold mb-4">
+<i class="fa-solid fa-satellite-dish mr-2"></i>
+ANALYSIS ONLY
+</div>
+
+<h2 class="text-3xl md:text-5xl font-black text-white">
+JTRADER
+<span class="text-purple-400">Precision VIX Analyzer</span>
+</h2>
+
+<p class="mt-4 max-w-3xl text-purple-200 leading-relaxed">
+Real-time Deriv market data with multi-timeframe technical analysis,
+market structure, breakout/retest analysis, fakeout protection,
+momentum confirmation and setup scoring.
+</p>
+
+<div class="mt-6 flex flex-wrap gap-3">
+<button onclick="showTab('scanner')"
+class="px-5 py-3 rounded-xl bg-purple-700 hover:bg-purple-600 font-bold text-sm">
+<i class="fa-solid fa-radar mr-2"></i>
+Open Scanner
+</button>
+
+<button onclick="showTab('analysis')"
+class="px-5 py-3 rounded-xl bg-purple-950 border border-purple-700/50 font-bold text-sm">
+<i class="fa-solid fa-chart-column mr-2"></i>
+Deep Analysis
+</button>
+</div>
+</div>
+</div>
+
+<div class="grid md:grid-cols-4 gap-4">
+
+<div class="card rounded-2xl p-5">
+<p class="text-xs text-purple-400 uppercase font-bold">Connection</p>
+<h3 id="dashConnection" class="text-xl font-black mt-2">Connecting</h3>
+<p class="text-xs text-purple-500 mt-1">Deriv public market feed</p>
+</div>
+
+<div class="card rounded-2xl p-5">
+<p class="text-xs text-purple-400 uppercase font-bold">Instruments</p>
+<h3 class="text-xl font-black mt-2">12 VIX</h3>
+<p class="text-xs text-purple-500 mt-1">Live monitored</p>
+</div>
+
+<div class="card rounded-2xl p-5">
+<p class="text-xs text-purple-400 uppercase font-bold">Timeframes</p>
+<h3 class="text-xl font-black mt-2">7</h3>
+<p class="text-xs text-purple-500 mt-1">1M → 1D</p>
+</div>
+
+<div class="card rounded-2xl p-5">
+<p class="text-xs text-purple-400 uppercase font-bold">Execution</p>
+<h3 class="text-xl font-black mt-2 text-green-300">OFF</h3>
+<p class="text-xs text-purple-500 mt-1">Analysis only</p>
+</div>
+
+</div>
+
+<div class="card rounded-3xl p-6">
+<div class="flex items-center justify-between mb-5">
+<div>
+<h3 class="font-black text-lg">JTRADER Engine</h3>
+<p class="text-xs text-purple-400">
+What the analyzer evaluates
+</p>
+</div>
+<i class="fa-solid fa-gears text-purple-400 text-xl"></i>
+</div>
+
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+
+<div class="p-4 rounded-xl bg-purple-950/50">
+<i class="fa-solid fa-arrow-trend-up text-purple-400"></i>
+<p class="text-sm font-bold mt-2">Trend</p>
+</div>
+
+<div class="p-4 rounded-xl bg-purple-950/50">
+<i class="fa-solid fa-layer-group text-purple-400"></i>
+<p class="text-sm font-bold mt-2">Structure</p>
+</div>
+
+<div class="p-4 rounded-xl bg-purple-950/50">
+<i class="fa-solid fa-bolt text-purple-400"></i>
+<p class="text-sm font-bold mt-2">Momentum</p>
+</div>
+
+<div class="p-4 rounded-xl bg-purple-950/50">
+<i class="fa-solid fa-shield-halved text-purple-400"></i>
+<p class="text-sm font-bold mt-2">Fakeout Guard</p>
+</div>
+
+<div class="p-4 rounded-xl bg-purple-950/50">
+<i class="fa-solid fa-chart-simple text-purple-400"></i>
+<p class="text-sm font-bold mt-2">EMA</p>
+</div>
+
+<div class="p-4 rounded-xl bg-purple-950/50">
+<i class="fa-solid fa-wave-square text-purple-400"></i>
+<p class="text-sm font-bold mt-2">RSI</p>
+</div>
+
+<div class="p-4 rounded-xl bg-purple-950/50">
+<i class="fa-solid fa-chart-area text-purple-400"></i>
+<p class="text-sm font-bold mt-2">MACD</p>
+</div>
+
+<div class="p-4 rounded-xl bg-purple-950/50">
+<i class="fa-solid fa-arrows-left-right text-purple-400"></i>
+<p class="text-sm font-bold mt-2">Support / Resistance</p>
+</div>
+
+</div>
+</div>
+
+</section>
+
+
+<!-- =========================================================
+SCANNER
+========================================================= -->
+<section id="page-scanner" class="hidden space-y-6">
+
+<div class="card rounded-3xl p-6">
+
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+
+<div>
+<h2 class="text-2xl font-black">
+JTRADER VIX Scanner
+</h2>
+<p class="text-xs text-purple-400 mt-1">
+All monitored VIX instruments
+</p>
+</div>
+
+<div class="flex gap-2">
+<select id="scannerTF"
+onchange="renderScanner()"
+class="bg-purple-950 border border-purple-800 rounded-xl px-4 py-2 text-sm font-bold">
+<option value="1m">1M</option>
+<option value="5m" selected>5M</option>
+<option value="15m">15M</option>
+<option value="30m">30M</option>
+<option value="1h">1H</option>
+<option value="4h">4H</option>
+<option value="1d">1D</option>
+</select>
+</div>
+
+</div>
+
+<div class="overflow-x-auto mt-5">
+<table class="w-full text-left text-xs">
+<thead>
+<tr class="border-b border-purple-900">
+<th class="p-3">Instrument</th>
+<th class="p-3">Price</th>
+<th class="p-3">Trend</th>
+<th class="p-3">Signal</th>
+<th class="p-3">Score</th>
+<th class="p-3">Fakeout</th>
+<th class="p-3">Status</th>
+</tr>
+</thead>
+
+<tbody id="scannerBody"></tbody>
+</table>
+</div>
+
+</div>
+</section>
+
+
+<!-- =========================================================
+DEEP ANALYSIS
+========================================================= -->
+<section id="page-analysis" class="hidden space-y-6">
+
+<div class="card rounded-3xl p-6">
+
+<div class="grid lg:grid-cols-3 gap-4">
+
+<div>
+<label class="text-xs text-purple-400 font-bold uppercase">
+VIX Instrument
+</label>
+
+<select id="symbolSelect"
+onchange="changeSymbol()"
+class="w-full mt-2 bg-purple-950 border border-purple-800 rounded-xl px-4 py-3 text-sm font-bold">
+</select>
+</div>
+
+<div class="lg:col-span-2">
+
+<label class="text-xs text-purple-400 font-bold uppercase">
+Timeframe
+</label>
+
+<div class="flex flex-wrap gap-2 mt-2">
+
+<button class="tf activeTF" data-tf="1m">1M</button>
+<button class="tf" data-tf="5m">5M</button>
+<button class="tf" data-tf="15m">15M</button>
+<button class="tf" data-tf="30m">30M</button>
+<button class="tf" data-tf="1h">1H</button>
+<button class="tf" data-tf="4h">4H</button>
+<button class="tf" data-tf="1d">1D</button>
+
+</div>
+
+</div>
+
+</div>
+</div>
+
+<div id="analysisOutput"></div>
+
+</section>
+
+
+<!-- =========================================================
+SCALP
+========================================================= -->
+<section id="page-scalp" class="hidden space-y-6">
+
+<div class="card rounded-3xl p-6">
+<h2 class="text-2xl font-black">JTRADER Scalp Analysis</h2>
+<p class="text-sm text-purple-400 mt-1">
+1M / 5M execution context with 15M / 30M / 1H trend confirmation.
+</p>
+</div>
+
+<div id="scalpGrid"
+class="grid md:grid-cols-2 xl:grid-cols-3 gap-5"></div>
+
+</section>
+
+
+<!-- =========================================================
+SWING
+========================================================= -->
+<section id="page-swing" class="hidden space-y-6">
+
+<div class="card rounded-3xl p-6">
+<h2 class="text-2xl font-black">JTRADER Swing Analysis</h2>
+<p class="text-sm text-purple-400 mt-1">
+1D / 4H / 1H structure with lower-timeframe context.
+</p>
+</div>
+
+<div id="swingGrid"
+class="grid md:grid-cols-2 xl:grid-cols-3 gap-5"></div>
+
+</section>
+
+</main>
+
+
+<script>
+/* =========================================================
+JTRADER CORE
+ANALYSIS ONLY
+NO TRADE EXECUTION
+========================================================= */
+
+const WS_URL =
+"wss://api.derivws.com/trading/v1/options/ws/public";
+
+const SYMBOLS=[
+{symbol:"R_10",name:"Volatility 10 Index",digits:2},
+{symbol:"R_25",name:"Volatility 25 Index",digits:2},
+{symbol:"R_50",name:"Volatility 50 Index",digits:4},
+{symbol:"R_75",name:"Volatility 75 Index",digits:2},
+{symbol:"R_100",name:"Volatility 100 Index",digits:2},
+{symbol:"R_15",name:"Volatility 15 Index",digits:2},
+{symbol:"1HZ10V",name:"Volatility 10 (1s)",digits:2},
+{symbol:"1HZ25V",name:"Volatility 25 (1s)",digits:2},
+{symbol:"1HZ50V",name:"Volatility 50 (1s)",digits:4},
+{symbol:"1HZ75V",name:"Volatility 75 (1s)",digits:2},
+{symbol:"1HZ100V",name:"Volatility 100 (1s)",digits:2},
+{symbol:"1HZ15V",name:"Volatility 15 (1s)",digits:2}
+];
+
+const TF={
+"1m":60,
+"5m":300,
+"15m":900,
+"30m":1800,
+"1h":3600,
+"4h":14400,
+"1d":86400
+};
+
+const state={};
+let ws=null;
+let reconnectTimer=null;
+let reconnectCount=0;
+let selectedSymbol="R_75";
+let selectedTF="5m";
+let lastDataTime=0;
+
+SYMBOLS.forEach(x=>{
+state[x.symbol]={
+ price:null,
+ prev:null,
+ candles:{},
+ ticks:[],
+ lastTick:0
+};
+Object.keys(TF).forEach(tf=>{
+state[x.symbol].candles[tf]=[];
+});
+});
+
+
+/* =========================================================
+UTILITY
+========================================================= */
+
+function fmt(v,d=2){
+if(v===null||v===undefined||Number.isNaN(Number(v))) return "--";
+return Number(v).toLocaleString(undefined,{
+minimumFractionDigits:d,
+maximumFractionDigits:d
+});
+}
+
+function escapeHTML(s){
+return String(s).replace(/[&<>"']/g,m=>({
+"&":"&amp;",
+"<":"&lt;",
+">":"&gt;",
+'"':"&quot;",
+"'":"&#039;"
+}[m]));
+}
+
+function setConnection(text,type="connecting"){
+const el=document.getElementById("connectionBadge");
+const dash=document.getElementById("dashConnection");
+
+el.className="px-4 py-2 rounded-full text-xs font-bold";
+
+if(type==="connected"){
+el.classList.add("bg-green-500/10","border","border-green-500/30","text-green-300");
+el.innerHTML='<i class="fa-solid fa-circle mr-1"></i>'+text;
+if(dash) dash.textContent="LIVE";
+}
+else if(type==="error"){
+el.classList.add("bg-red-500/10","border","border-red-500/30","text-red-300");
+el.innerHTML='<i class="fa-solid fa-circle mr-1"></i>'+text;
+if(dash) dash.textContent="ERROR";
+}
+else{
+el.classList.add("bg-amber-500/10","border","border-amber-500/30","text-amber-300");
+el.innerHTML='<i class="fa-solid fa-circle mr-1 pulse"></i>'+text;
+if(dash) dash.textContent="CONNECTING";
+}
+}
+
+
+/* =========================================================
+WEBSOCKET
+========================================================= */
+
+function connect(){
+
+clearTimeout(reconnectTimer);
+
+try{
+if(ws) ws.close();
+}catch(e){}
+
+setConnection("Connecting to Deriv...","connecting");
+
+ws=new WebSocket(WS_URL);
+
+ws.onopen=()=>{
+
+reconnectCount=0;
+setConnection("Deriv Live Feed","connected");
+
+SYMBOLS.forEach((item,i)=>{
+
+setTimeout(()=>{
+
+send({
+ticks:item.symbol,
+subscribe:1
+});
+
+Object.keys(TF).forEach(tf=>{
+requestCandles(item.symbol,tf);
+});
+
+},i*180);
+
+});
+
+};
+
+ws.onmessage=e=>{
+
+lastDataTime=Date.now();
+
+document.getElementById("dataAge").textContent="Data: LIVE";
+
+try{
+const data=JSON.parse(e.data);
+handleMessage(data);
+}catch(err){
+console.error("JTRADER parse error",err);
+}
+
+};
+
+ws.onerror=()=>{
+setConnection("WebSocket Error","error");
+};
+
+ws.onclose=()=>{
+
+setConnection("Disconnected — reconnecting","error");
+
+reconnectCount++;
+
+const delay=Math.min(15000,2000*reconnectCount);
+
+reconnectTimer=setTimeout(connect,delay);
+
+};
+
+}
+
+function send(obj){
+
+if(ws && ws.readyState===WebSocket.OPEN){
+ws.send(JSON.stringify(obj));
+}
+
+}
+
+
+/* =========================================================
+HISTORICAL CANDLES
+========================================================= */
+
+function requestCandles(symbol,tf){
+
+send({
+ticks_history:symbol,
+adjust_start_time:1,
+count:250,
+end:"latest",
+style:"candles",
+granularity:TF[tf],
+subscribe:0,
+req_id:Date.now()+Math.random()
+});
+
+}
+
+
+/* =========================================================
+MESSAGE HANDLER
+========================================================= */
+
+function handleMessage(data){
+
+if(data.msg_type==="tick"){
+
+const t=data.tick;
+
+if(!t || !t.symbol) return;
+
+const symbol=t.symbol;
+const price=Number(t.quote);
+const epoch=Number(t.epoch);
+
+if(!state[symbol]) return;
+
+state[symbol].prev=state[symbol].price;
+state[symbol].price=price;
+state[symbol].lastTick=epoch;
+
+state[symbol].ticks.push({
+price,
+time:epoch
+});
+
+if(state[symbol].ticks.length>1000)
+state[symbol].ticks.shift();
+
+updateCurrentCandle(symbol,price,epoch);
+
+renderEverything();
+
+return;
+}
+
+
+if(data.msg_type==="candles"){
+
+const candles=data.candles;
+
+if(!Array.isArray(candles)) return;
+
+let symbol=
+data.echo_req?.ticks_history ||
+data.echo_req?.symbol ||
+null;
+
+if(!symbol){
+
+/* fallback: match by price if possible */
+symbol=selectedSymbol;
+}
+
+const granularity=
+data.echo_req?.granularity ||
+data.echo_req?.req_id ||
+null;
+
+/*
+Because the public API response may not always expose
+the original request fields, identify the timeframe by
+matching the candle spacing.
+*/
+
+let tf=findTFByCandles(candles);
+
+if(tf && state[symbol]){
+
+state[symbol].candles[tf]=candles.map(c=>({
+time:Number(c.epoch),
+open:Number(c.open),
+high:Number(c.high),
+low:Number(c.low),
+close:Number(c.close)
+}));
+
+}
+
+renderEverything();
+
+}
+
+if(data.error){
+console.error("Deriv error:",data.error);
+}
+
+}
+
+
+/* =========================================================
+TIMEFRAME DETECTION
+========================================================= */
+
+function findTFByCandles(candles){
+
+if(!candles || candles.length<2) return null;
+
+const a=Number(candles[0].epoch);
+const b=Number(candles[1].epoch);
+
+const diff=Math.abs(b-a);
+
+let best=null;
+let distance=Infinity;
+
+Object.entries(TF).forEach(([name,seconds])=>{
+const d=Math.abs(diff-seconds);
+if(d<distance){
+distance=d;
+best=name;
+}
+});
+
+return best;
+}
+
+
+/* =========================================================
+LIVE CANDLE SYNC
+========================================================= */
+
+function updateCurrentCandle(symbol,price,epoch){
+
+Object.entries(TF).forEach(([tf,seconds])=>{
+
+const arr=state[symbol].candles[tf];
+
+if(!arr.length) return;
+
+const bucket=Math.floor(epoch/seconds)*seconds;
+
+let c=arr[arr.length-1];
+
+if(c.time!==bucket){
+
+c={
+time:bucket,
+open:price,
+high:price,
+low:price,
+close:price
+};
+
+arr.push(c);
+
+if(arr.length>300)
+arr.shift();
+
+}else{
+
+c.close=price;
+c.high=Math.max(c.high,price);
+c.low=Math.min(c.low,price);
+
+}
+
+});
+
+}
+
+
+/* =========================================================
+INDICATORS
+========================================================= */
+
+function ema(values,period){
+
+if(!values.length) return null;
+
+const k=2/(period+1);
+
+let result=values[0];
+
+for(let i=1;i<values.length;i++){
+result=values[i]*k+result*(1-k);
+}
+
+return result;
+}
+
+function emaSeries(values,period){
+
+if(!values.length) return [];
+
+const out=[];
+const k=2/(period+1);
+
+let e=values[0];
+out.push(e);
+
+for(let i=1;i<values.length;i++){
+e=values[i]*k+e*(1-k);
+out.push(e);
+}
+
+return out;
+}
+
+function rsi(values,period=14){
+
+if(values.length<period+1) return 50;
+
+let gains=0;
+let losses=0;
+
+for(let i=values.length-period;i<values.length;i++){
+
+const d=values[i]-values[i-1];
+
+if(d>0) gains+=d;
+else losses+=Math.abs(d);
+
+}
+
+if(losses===0) return 100;
+
+const rs=(gains/period)/(losses/period);
+
+return 100-(100/(1+rs));
+
+}
+
+function rsiSeries(values,period=14){
+
+if(values.length<period+1) return [];
+
+const result=[];
+
+for(let i=period;i<values.length;i++){
+result.push(rsi(values.slice(0,i+1),period));
+}
+
+return result;
+}
+
+function macd(values){
+
+if(values.length<35)
+return {
+line:0,
+signal:0,
+hist:0,
+previousHist:0
+};
+
+const fast=emaSeries(values,12);
+const slow=emaSeries(values,26);
+
+const line=[];
+
+for(let i=0;i<values.length;i++){
+line.push(fast[i]-slow[i]);
+}
+
+const signalSeries=emaSeries(line.slice(26),9);
+
+const lineNow=line[line.length-1];
+const signalNow=signalSeries[signalSeries.length-1] || 0;
+
+const previousLine=line[line.length-2]||lineNow;
+const previousSignal=signalSeries[signalSeries.length-2]||signalNow;
+
+return{
+line:lineNow,
+signal:signalNow,
+hist:lineNow-signalNow,
+previousHist:previousLine-previousSignal
+};
+
+}
+
+function atr(candles,period=14){
+
+if(candles.length<2) return 0;
+
+const tr=[];
+
+for(let i=1;i<candles.length;i++){
+
+const c=candles[i];
+const p=candles[i-1];
+
+tr.push(
+Math.max(
+c.high-c.low,
+Math.abs(c.high-p.close),
+Math.abs(c.low-p.close)
+)
+);
+
+}
+
+const values=tr.slice(-period);
+
+return values.reduce((a,b)=>a+b,0)/(values.length||1);
+
+}
+
+
+/* =========================================================
+STRUCTURE
+========================================================= */
+
+function pivots(candles,left=2,right=2){
+
+const highs=[];
+const lows=[];
+
+for(let i=left;i<candles.length-right;i++){
+
+let high=true;
+let low=true;
+
+for(let j=1;j<=left;j++){
+
+if(candles[i].high<=candles[i-j].high)
+high=false;
+
+if(candles[i].low>=candles[i-j].low)
+low=false;
+
+}
+
+for(let j=1;j<=right;j++){
+
+if(candles[i].high<=candles[i+j].high)
+high=false;
+
+if(candles[i].low>=candles[i+j].low)
+low=false;
+
+}
+
+if(high)
+highs.push({
+index:i,
+price:candles[i].high
+});
+
+if(low)
+lows.push({
+index:i,
+price:candles[i].low
+});
+
+}
+
+return{highs,lows};
+
+}
+
+function marketStructure(candles){
+
+if(candles.length<12){
+
+return{
+trend:"NEUTRAL",
+label:"Insufficient structure",
+bos:"NONE",
+choch:"NONE",
+highs:[],
+lows:[]
+};
+
+}
+
+const p=pivots(candles);
+
+const highs=p.highs.slice(-5);
+const lows=p.lows.slice(-5);
+
+let trend="NEUTRAL";
+
+if(highs.length>=2 && lows.length>=2){
+
+const h1=highs[highs.length-2].price;
+const h2=highs[highs.length-1].price;
+
+const l1=lows[lows.length-2].price;
+const l2=lows[lows.length-1].price;
+
+if(h2>h1 && l2>l1)
+trend="BULLISH";
+
+else if(h2<h1 && l2<l1)
+trend="BEARISH";
+}
+
+const last=candles[candles.length-1];
+
+const previousHigh=
+highs.length?highs[highs.length-1].price:null;
+
+const previousLow=
+lows.length?lows[lows.length-1].price:null;
+
+let bos="NONE";
+
+if(previousHigh && last.close>previousHigh)
+bos="BULLISH BOS";
+
+if(previousLow && last.close<previousLow)
+bos="BEARISH BOS";
+
+return{
+trend,
+label:
+trend==="BULLISH"?"HH / HL":
+trend==="BEARISH"?"LH / LL":
+"RANGE / TRANSITION",
+bos,
+choch:"MONITOR",
+highs,
+lows
+};
+
+}
+
+
+/* =========================================================
+SUPPORT / RESISTANCE
+========================================================= */
+
+function levels(candles){
+
+if(!candles.length)
+return{support:null,resistance:null};
+
+const p=pivots(candles);
+
+const highs=p.highs.slice(-8).map(x=>x.price);
+const lows=p.lows.slice(-8).map(x=>x.price);
+
+const resistance=
+highs.length?Math.max(...highs):Math.max(...candles.slice(-20).map(x=>x.high));
+
+const support=
+lows.length?Math.min(...lows):Math.min(...candles.slice(-20).map(x=>x.low));
+
+return{support,resistance};
+
+}
+
+
+/* =========================================================
+CANDLE ANALYSIS
+========================================================= */
+
+function candleSignal(candles){
+
+if(candles.length<3)
+return{
+signal:"NONE",
+text:"Not enough candles"
+};
+
+const c=candles[candles.length-1];
+const p=candles[candles.length-2];
+
+const body=Math.abs(c.close-c.open);
+const range=Math.max(c.high-c.low,0.0000001);
+
+const upper=c.high-Math.max(c.open,c.close);
+const lower=Math.min(c.open,c.close)-c.low;
+
+let signal="NONE";
+let text="No strong candle confirmation";
+
+if(c.close>c.open && p.close<p.open &&
+c.close>=p.open && c.open<=p.close){
+
+signal="BULLISH ENGULFING";
+text="Bullish engulfing candle detected";
+}
+
+else if(c.close<c.open && p.close>p.open &&
+c.open>=p.close && c.close<=p.open){
+
+signal="BEARISH ENGULFING";
+text="Bearish engulfing candle detected";
+}
+
+else if(lower>body*2 && lower>upper*1.5){
+
+signal="BULLISH REJECTION";
+text="Long lower wick shows bullish rejection";
+}
+
+else if(upper>body*2 && upper>lower*1.5){
+
+signal="BEARISH REJECTION";
+text="Long upper wick shows bearish rejection";
+}
+
+else if(body/range>.70 && c.close>c.open){
+
+signal="STRONG BULLISH";
+text="Strong bullish candle close";
+}
+
+else if(body/range>.70 && c.close<c.open){
+
+signal="STRONG BEARISH";
+text="Strong bearish candle close";
+}
+
+return{signal,text};
+
+}
+
+
+/* =========================================================
+BREAKOUT / FAKEOUT
+========================================================= */
+
+function breakoutAnalysis(candles){
+
+if(candles.length<10)
+return{
+state:"NONE",
+text:"Not enough data",
+fakeout:"UNKNOWN"
+};
+
+const lv=levels(candles);
+const c=candles[candles.length-1];
+const p=candles[candles.length-2];
+
+const buffer=(lv.resistance-lv.support)*.002;
+
+let state="NONE";
+let fakeout="LOW";
+let text="No active breakout";
+
+if(p.close<=lv.resistance &&
+c.close>lv.resistance+buffer){
+
+state="BULLISH BREAKOUT";
+text="Price closed above resistance";
+}
+
+if(p.close>=lv.support &&
+c.close<lv.support-buffer){
+
+state="BEARISH BREAKOUT";
+text="Price closed below support";
+}
+
+if(p.high>lv.resistance &&
+c.close<lv.resistance){
+
+state="FAILED BULLISH BREAK";
+fakeout="HIGH";
+text="Resistance was breached but price closed back below it";
+}
+
+if(p.low<lv.support &&
+c.close>lv.support){
+
+state="FAILED BEARISH BREAK";
+fakeout="HIGH";
+text="Support was breached but price closed back above it";
+}
+
+return{state,text,fakeout};
+
+}
+
+
+/* =========================================================
+DIVERGENCE
+========================================================= */
+
+function divergence(candles){
+
+if(candles.length<30)
+return{
+bullish:false,
+bearish:false
+};
+
+const closes=candles.map(c=>c.close);
+const rsis=rsiSeries(closes,14);
+
+if(rsis.length<10)
+return{
+bullish:false,
+bearish:false
+};
+
+const priceA=closes[closes.length-10];
+const priceB=closes[closes.length-1];
+
+const rsiA=rsis[rsis.length-10];
+const rsiB=rsis[rsis.length-1];
+
+return{
+bullish:priceB<priceA && rsiB>rsiA,
+bearish:priceB>priceA && rsiB<rsiA
+};
+
+}
+
+
+/* =========================================================
+ANALYSIS ENGINE
+========================================================= */
+
+function analyze(symbol,tf){
+
+const s=state[symbol];
+
+const candles=s.candles[tf]||[];
+
+if(candles.length<35){
+
+return{
+symbol,
+tf,
+ready:false,
+signal:"WAIT",
+status:"WAITING FOR CANDLE DATA",
+score:0,
+maxScore:10,
+trend:"NEUTRAL",
+reason:"Waiting for enough historical candles.",
+waiting:"JTRADER needs more data before evaluating this setup."
+};
+
+}
+
+const closes=candles.map(c=>c.close);
+
+const price=s.price ?? closes[closes.length-1];
+
+const e20=ema(closes,20);
+const e50=ema(closes,50);
+
+const r=rsi(closes,14);
+const m=macd(closes);
+const a=atr(candles,14);
+
+const structure=marketStructure(candles);
+const lv=levels(candles);
+const candle=candleSignal(candles);
+const breakout=breakoutAnalysis(candles);
+const div=divergence(candles);
+
+let bull=0;
+let bear=0;
+
+const reasons=[];
+const warnings=[];
+
+
+/* TREND */
+if(price>e20){
+bull++;
+reasons.push("Price is above EMA 20");
+}
+else{
+bear++;
+reasons.push("Price is below EMA 20");
+}
+
+if(e20>e50){
+bull++;
+reasons.push("EMA 20 is above EMA 50");
+}
+else{
+bear++;
+reasons.push("EMA 20 is below EMA 50");
+}
+
+
+/* RSI */
+if(r>50){
+bull++;
+reasons.push(`RSI ${r.toFixed(1)} is above 50`);
+}
+else{
+bear++;
+reasons.push(`RSI ${r.toFixed(1)} is below 50`);
+}
+
+if(r>72)
+warnings.push("RSI is highly extended to the upside");
+
+if(r<28)
+warnings.push("RSI is highly extended to the downside");
+
+
+/* MACD */
+if(m.line>m.signal && m.hist>m.previousHist){
+
+bull++;
+reasons.push("MACD bullish momentum is expanding");
+}
+else if(m.line<m.signal && m.hist<m.previousHist){
+
+bear++;
+reasons.push("MACD bearish momentum is expanding");
+}
+else{
+
+warnings.push("MACD momentum is not strongly expanding");
+}
+
+
+/* STRUCTURE */
+if(structure.trend==="BULLISH"){
+bull++;
+reasons.push("Market structure is HH/HL bullish");
+}
+
+if(structure.trend==="BEARISH"){
+bear++;
+reasons.push("Market structure is LH/LL bearish");
+}
+
+
+/* CANDLE */
+if(
+candle.signal==="BULLISH ENGULFING"||
+candle.signal==="BULLISH REJECTION"||
+candle.signal==="STRONG BULLISH"
+){
+bull++;
+reasons.push(candle.text);
+}
+
+if(
+candle.signal==="BEARISH ENGULFING"||
+candle.signal==="BEARISH REJECTION"||
+candle.signal==="STRONG BEARISH"
+){
+bear++;
+reasons.push(candle.text);
+}
+
+
+/* BREAKOUT */
+if(breakout.state==="BULLISH BREAKOUT"){
+bull++;
+reasons.push("Bullish breakout detected");
+}
+
+if(breakout.state==="BEARISH BREAKOUT"){
+bear++;
+reasons.push("Bearish breakout detected");
+}
+
+if(breakout.fakeout==="HIGH"){
+warnings.push("High fakeout risk: breakout failed to hold");
+}
+
+
+/* DIVERGENCE */
+if(div.bullish){
+bull++;
+reasons.push("Bullish RSI divergence detected");
+}
+
+if(div.bearish){
+bear++;
+reasons.push("Bearish RSI divergence detected");
+}
+
+
+/* SIGNAL */
+let signal="WAIT";
+let status="WAIT";
+let confidence=Math.max(bull,bear);
+
+if(bull>=7 && bull>bear+2){
+
+signal="BUY";
+
+if(
+breakout.state==="BULLISH BREAKOUT" ||
+candle.signal.includes("BULLISH")
+)
+status="CONFIRMATION STRONG";
+else
+status="BUY WATCH";
+
+}
+
+else if(bear>=7 && bear>bull+2){
+
+signal="SELL";
+
+if(
+breakout.state==="BEARISH BREAKOUT" ||
+candle.signal.includes("BEARISH")
+)
+status="CONFIRMATION STRONG";
+else
+status="SELL WATCH";
+
+}
+
+else{
+
+signal="WAIT";
+
+status=
+Math.abs(bull-bear)<=1
+?"CONFLICT / CONSOLIDATION"
+:"WAIT FOR CONFIRMATION";
+}
+
+
+/* FAKEOUT OVERRIDE */
+if(breakout.fakeout==="HIGH"){
+
+signal="WAIT";
+status="FAKEOUT WARNING";
+warnings.push("JTRADER blocked the directional signal because the breakout failed.");
+
+}
+
+
+/* LEVEL PROXIMITY */
+const distanceToResistance=
+lv.resistance?
+Math.abs(lv.resistance-price):Infinity;
+
+const distanceToSupport=
+lv.support?
+Math.abs(price-lv.support):Infinity;
+
+if(signal==="BUY" && distanceToResistance<a*0.7){
+
+warnings.push("Resistance is very close to the current price.");
+}
+
+if(signal==="SELL" && distanceToSupport<a*0.7){
+
+warnings.push("Support is very close to the current price.");
+}
+
+
+/* ENTRY ZONE */
+let entryLow=price;
+let entryHigh=price;
+
+if(a){
+
+if(signal==="BUY"){
+entryLow=Math.max(lv.support||price-a*.5,price-a*.35);
+entryHigh=price+a*.15;
+}
+
+if(signal==="SELL"){
+entryLow=price-a*.15;
+entryHigh=Math.min(lv.resistance||price+a*.5,price+a*.35);
+}
+
+}
+
+
+/* SL / TP */
+let sl=price;
+let tp1=price;
+let tp2=price;
+let tp3=price;
+
+if(signal==="BUY"){
+
+sl=Math.min(
+price-a*1.2,
+lv.support ? lv.support-a*.15 : price-a*1.2
+);
+
+tp1=
+lv.resistance && lv.resistance>price
+?lv.resistance
+:price+a*1.5;
+
+tp2=price+a*2.5;
+tp3=price+a*3.5;
+
+}
+
+if(signal==="SELL"){
+
+sl=Math.max(
+price+a*1.2,
+lv.resistance ? lv.resistance+a*.15 : price+a*1.2
+);
+
+tp1=
+lv.support && lv.support<price
+?lv.support
+:price-a*1.5;
+
+tp2=price-a*2.5;
+tp3=price-a*3.5;
+
+}
+
+
+/* R:R */
+const risk=Math.abs(price-sl);
+
+const reward=Math.abs(tp2-price);
+
+const rr=risk>0?reward/risk:0;
+
+
+/* INVALIDATION */
+let invalidation="No directional setup — wait for confirmation.";
+
+if(signal==="BUY")
+invalidation=`BUY invalidates if price closes below ${fmt(sl,2)}.`;
+
+if(signal==="SELL")
+invalidation=`SELL invalidates if price closes above ${fmt(sl,2)}.`;
+
+
+/* WAITING PLAN */
+let waiting="";
+
+if(signal==="BUY"){
+
+waiting=
+"Wait for bullish confirmation, preferably a pullback/retest that holds support or the breakout level before treating the setup as confirmed.";
+
+}
+
+else if(signal==="SELL"){
+
+waiting=
+"Wait for bearish confirmation, preferably a retracement/retest that rejects resistance or the breakdown level before treating the setup as confirmed.";
+
+}
+
+else{
+
+waiting=
+"Wait for the higher-timeframe direction, structure and momentum to align. Avoid entering during unresolved consolidation or fakeout conditions.";
+
+}
+
+
+/* FINAL SCORE */
+const score=Math.min(10,Math.max(bull,bear));
+
+return{
+ready:true,
+symbol,
+tf,
+price,
+e20,
+e50,
+rsi:r,
+macd:m,
+atr:a,
+structure,
+levels:lv,
+candle,
+breakout,
+divergence:div,
+signal,
+status,
+score,
+bull,
+bear,
+reasons,
+warnings,
+entryLow,
+entryHigh,
+sl,
+tp1,
+tp2,
+tp3,
+rr,
+invalidation,
+waiting
+};
+
+}
+
+
+/* =========================================================
+MULTI-TIMEFRAME
+========================================================= */
+
+function multiTF(symbol){
+
+const order=["1d","4h","1h","30m","15m","5m","1m"];
+
+const results={};
+
+order.forEach(tf=>{
+results[tf]=analyze(symbol,tf);
+});
+
+return results;
+
+}
+
+function overallMTF(symbol){
+
+const m=multiTF(symbol);
+
+let bull=0;
+let bear=0;
+
+Object.values(m).forEach(a=>{
+
+if(!a.ready)return;
+
+if(a.signal==="BUY")bull++;
+if(a.signal==="SELL")bear++;
+
+});
+
+let trend="MIXED";
+
+if(bull>=5 && bull>bear)
+trend="BULLISH";
+
+else if(bear>=5 && bear>bull)
+trend="BEARISH";
+
+return{
+trend,
+bull,
+bear,
+data:m
+};
+
+}
+
+
+/* =========================================================
+RENDER DEEP ANALYSIS
+========================================================= */
+
+function renderAnalysis(){
+
+const a=analyze(selectedSymbol,selectedTF);
+
+const container=document.getElementById("analysisOutput");
+
+if(!a.ready){
+
+container.innerHTML=`
+<div class="card rounded-3xl p-8 text-center">
+<div class="text-4xl mb-4">⏳</div>
+<h3 class="font-black text-xl">Waiting for Market Data</h3>
+<p class="text-purple-400 text-sm mt-2">
+JTRADER is collecting enough ${selectedTF} candles for ${selectedSymbol}.
+</p>
+</div>`;
+return;
+
+}
+
+const mtf=overallMTF(selectedSymbol);
+
+const signalClass=
+a.signal==="BUY"?"signalBuy":
+a.signal==="SELL"?"signalSell":
+"signalWait";
+
+container.innerHTML=`
+
+<div class="card rounded-3xl p-6">
+
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+
+<div>
+<div class="flex flex-wrap items-center gap-3">
+
+<h2 class="text-2xl font-black">
+${escapeHTML(
+SYMBOLS.find(x=>x.symbol===selectedSymbol)?.name||selectedSymbol
+)}
+</h2>
+
+<span class="px-3 py-1 rounded-full text-xs font-black ${signalClass}">
+${a.signal}
+</span>
+
+</div>
+
+<p class="text-xs text-purple-400 mt-2">
+${selectedTF.toUpperCase()} • Live Price ${fmt(a.price,SYMBOLS.find(x=>x.symbol===selectedSymbol)?.digits||2)}
+</p>
+
+</div>
+
+<div class="text-right">
+
+<p class="text-xs text-purple-400">
+JTRADER SETUP SCORE
+</p>
+
+<p class="text-3xl font-black text-purple-300">
+${a.score}/10
+</p>
+
+</div>
+
+</div>
+
+
+<div class="grid md:grid-cols-4 gap-3 mt-6">
+
+${metric("EMA 20",fmt(a.e20,2))}
+${metric("EMA 50",fmt(a.e50,2))}
+${metric("RSI",a.rsi.toFixed(1))}
+${metric("ATR",fmt(a.atr,2))}
+
+</div>
+
+
+<div class="grid lg:grid-cols-3 gap-5 mt-5">
+
+<div class="lg:col-span-2 space-y-5">
+
+<div class="bg-purple-950/40 rounded-2xl p-5">
+
+<h3 class="font-black text-purple-200">
+<i class="fa-solid fa-brain mr-2"></i>
+WHY JTRADER IS SHOWING ${a.signal}
+</h3>
+
+<div class="space-y-2 mt-4">
+
+${a.reasons.map(x=>`
+<div class="flex gap-2 text-sm">
+<span class="text-green-400">✓</span>
+<span>${escapeHTML(x)}</span>
+</div>
+`).join("")}
+
+</div>
+
+</div>
+
+
+<div class="bg-purple-950/40 rounded-2xl p-5">
+
+<h3 class="font-black">
+<i class="fa-solid fa-clock mr-2 text-amber-400"></i>
+WHAT JTRADER IS WAITING FOR
+</h3>
+
+<p class="text-sm text-purple-200 leading-relaxed mt-3">
+${escapeHTML(a.waiting)}
+</p>
+
+</div>
+
+
+<div class="bg-purple-950/40 rounded-2xl p-5">
+
+<h3 class="font-black">
+<i class="fa-solid fa-shield-halved mr-2 text-purple-400"></i>
+FAKEOUT / BREAKOUT ENGINE
+</h3>
+
+<div class="grid md:grid-cols-2 gap-3 mt-4">
+
+${metric("Breakout",a.breakout.state)}
+${metric("Fakeout Risk",a.breakout.fakeout)}
+
+</div>
+
+<p class="text-sm text-purple-300 mt-4">
+${escapeHTML(a.breakout.text)}
+</p>
+
+</div>
+
+
+<div class="bg-purple-950/40 rounded-2xl p-5">
+
+<h3 class="font-black">
+<i class="fa-solid fa-candle-holder mr-2 text-purple-400"></i>
+CANDLE CONFIRMATION
+</h3>
+
+<p class="text-lg font-black mt-3">
+${escapeHTML(a.candle.signal)}
+</p>
+
+<p class="text-sm text-purple-400 mt-1">
+${escapeHTML(a.candle.text)}
+</p>
+
+</div>
+
+
+<div class="bg-purple-950/40 rounded-2xl p-5">
+
+<h3 class="font-black">
+<i class="fa-solid fa-triangle-exclamation mr-2 text-amber-400"></i>
+WARNINGS
+</h3>
+
+${a.warnings.length?
+
+`<div class="space-y-2 mt-3">
+${a.warnings.map(w=>`
+<div class="text-sm text-amber-200">
+⚠ ${escapeHTML(w)}
+</div>`).join("")}
+</div>`
+
+:
+
+`<p class="text-sm text-green-300 mt-3">
+✓ No major warning detected by the current rule set.
+</p>`
+
+}
+
+</div>
+
+</div>
+
+
+<div class="space-y-5">
+
+<div class="bg-purple-950/40 rounded-2xl p-5">
+
+<h3 class="font-black mb-4">
+MULTI-TIMEFRAME
+</h3>
+
+${Object.entries(mtf.data).map(([tf,x])=>`
+
+<div class="flex items-center justify-between py-2 border-b border-purple-900/30">
+
+<span class="font-bold">${tf.toUpperCase()}</span>
+
+<span class="${
+x.signal==="BUY"?"good":
+x.signal==="SELL"?"bad":"warn"
+} font-black">
+
+${x.ready?x.signal:"WAIT"}
+
+</span>
+
+</div>
+
+`).join("")}
+
+<div class="mt-4 p-3 rounded-xl bg-purple-900/30">
+
+<p class="text-xs text-purple-400">
+OVERALL MTF BIAS
+</p>
+
+<p class="font-black text-lg mt-1">
+${mtf.trend}
+</p>
+
+</div>
+
+</div>
+
+
+<div class="bg-purple-950/40 rounded-2xl p-5">
+
+<h3 class="font-black mb-4">
+MARKET STRUCTURE
+</h3>
+
+${metric("Trend",a.structure.trend)}
+${metric("Structure",a.structure.label)}
+${metric("BOS",a.structure.bos)}
+${metric("CHOCH",a.structure.choch)}
+
+</div>
+
+
+<div class="bg-purple-950/40 rounded-2xl p-5">
+
+<h3 class="font-black mb-4">
+KEY LEVELS
+</h3>
+
+${metric("Support",fmt(a.levels.support,2))}
+${metric("Resistance",fmt(a.levels.resistance,2))}
+
+</div>
+
+</div>
+
+</div>
+
+
+<div class="card rounded-2xl p-5 mt-5 border-purple-700/40">
+
+<h3 class="font-black text-purple-200">
+<i class="fa-solid fa-crosshairs mr-2"></i>
+ANALYTICAL SETUP LEVELS
+</h3>
+
+<div class="grid md:grid-cols-5 gap-3 mt-4">
+
+${metric("Entry Zone",`${fmt(a.entryLow,2)} – ${fmt(a.entryHigh,2)}`)}
+${metric("Invalidation",fmt(a.sl,2))}
+${metric("TP1",fmt(a.tp1,2))}
+${metric("TP2",fmt(a.tp2,2))}
+${metric("TP3",fmt(a.tp3,2))}
+
+</div>
+
+<div class="mt-4 flex items-center justify-between">
+
+<span class="text-sm text-purple-400">
+Analytical R:R to TP2
+</span>
+
+<span class="font-black text-purple-200">
+1 : ${a.rr.toFixed(2)}
+</span>
+
+</div>
+
+<p class="text-xs text-purple-500 mt-4">
+These are analytical levels only. JTRADER does not place, execute,
+or manage trades.
+</p>
+
+</div>
+
+
+<div class="mt-5 p-5 rounded-2xl ${
+a.signal==="BUY"?"bg-green-500/10 border-green-500/20":
+a.signal==="SELL"?"bg-red-500/10 border-red-500/20":
+"bg-amber-500/10 border-amber-500/20"
+} border">
+
+<h3 class="font-black text-lg">
+${a.status}
+</h3>
+
+<p class="text-sm mt-2">
+${escapeHTML(a.invalidation)}
+</p>
+
+</div>
+
+</div>
+`;
+
+}
+
+function metric(label,value){
+
+return`
+<div class="bg-purple-900/30 rounded-xl p-3">
+<p class="text-[10px] uppercase text-purple-400 font-bold">
+${label}
+</p>
+<p class="text-sm font-black mt-1 break-words">
+${value}
+</p>
+</div>`;
+}
+
+
+/* =========================================================
+SCANNER
+========================================================= */
+
+function renderScanner(){
+
+const tf=document.getElementById("scannerTF").value;
+
+const body=document.getElementById("scannerBody");
+
+body.innerHTML="";
+
+SYMBOLS.forEach(item=>{
+
+const a=analyze(item.symbol,tf);
+
+const tr=document.createElement("tr");
+
+tr.className="border-b border-purple-900/30 hover:bg-purple-900/20 cursor-pointer";
+
+tr.onclick=()=>{
+selectedSymbol=item.symbol;
+selectedTF=tf;
+syncControls();
+showTab("analysis");
+renderAnalysis();
+};
+
+if(!a.ready){
+
+tr.innerHTML=`
+<td class="p-3 font-bold">${item.symbol}</td>
+<td class="p-3">--</td>
+<td class="p-3">--</td>
+<td class="p-3 warn">WAIT</td>
+<td class="p-3">--</td>
+<td class="p-3">--</td>
+<td class="p-3">Collecting</td>
+`;
+
+body.appendChild(tr);
+return;
+}
+
+const signalClass=
+a.signal==="BUY"?"good":
+a.signal==="SELL"?"bad":"warn";
+
+tr.innerHTML=`
+
+<td class="p-3">
+<div class="font-black">${item.symbol}</div>
+<div class="text-[10px] text-purple-500">
+${item.name}
+</div>
+</td>
+
+<td class="p-3 font-bold">
+${fmt(a.price,item.digits)}
+</td>
+
+<td class="p-3">
+<span class="${
+a.structure.trend==="BULLISH"?"good":
+a.structure.trend==="BEARISH"?"bad":"warn"
+}">
+${a.structure.trend}
+</span>
+</td>
+
+<td class="p-3 font-black ${signalClass}">
+${a.signal}
+</td>
+
+<td class="p-3">
+<div class="flex items-center gap-2">
+<span>${a.score}/10</span>
+<div class="w-16 bar">
+<span style="width:${a.score*10}%"></span>
+</div>
+</div>
+</td>
+
+<td class="p-3 ${
+a.breakout.fakeout==="HIGH"?"bad":
+a.breakout.fakeout==="MEDIUM"?"warn":"good"
+}">
+${a.breakout.fakeout}
+</td>
+
+<td class="p-3 text-purple-300">
+${a.status}
+</td>
+`;
+
+body.appendChild(tr);
+
+});
+
+}
+
+
+/* =========================================================
+SCALP / SWING
+========================================================= */
+
+function renderScalp(){
+
+const grid=document.getElementById("scalpGrid");
+
+grid.innerHTML="";
+
+SYMBOLS.forEach(item=>{
+
+const a=analyze(item.symbol,"5m");
+
+const mtf=overallMTF(item.symbol);
+
+grid.appendChild(
+setupCard(item,a,mtf,"SCALP")
+);
+
+});
+
+}
+
+function renderSwing(){
+
+const grid=document.getElementById("swingGrid");
+
+grid.innerHTML="";
+
+SYMBOLS.forEach(item=>{
+
+const a=analyze(item.symbol,"4h");
+
+const mtf=overallMTF(item.symbol);
+
+grid.appendChild(
+setupCard(item,a,mtf,"SWING")
+);
+
+});
+
+}
+
+function setupCard(item,a,mtf,type){
+
+const div=document.createElement("div");
+
+div.className="card rounded-3xl p-5";
+
+if(!a.ready){
+
+div.innerHTML=`
+<h3 class="font-black">${item.symbol}</h3>
+<p class="text-xs text-purple-400 mt-2">
+Waiting for enough data...
+</p>`;
+return div;
+
+}
+
+const cls=
+a.signal==="BUY"?"good":
+a.signal==="SELL"?"bad":"warn";
+
+div.innerHTML=`
+
+<div class="flex justify-between items-start">
+
+<div>
+<h3 class="font-black text-lg">
+${item.symbol}
+</h3>
+
+<p class="text-xs text-purple-500">
+${item.name}
+</p>
+</div>
+
+<span class="font-black ${cls}">
+${a.signal}
+</span>
+
+</div>
+
+<div class="mt-4">
+
+<div class="flex justify-between text-xs">
+<span class="text-purple-400">Score</span>
+<span>${a.score}/10</span>
+</div>
+
+<div class="bar mt-2">
+<span style="width:${a.score*10}%"></span>
+</div>
+
+</div>
+
+<div class="grid grid-cols-2 gap-2 mt-4">
+
+${metric("Trend",a.structure.trend)}
+${metric("MTF",mtf.trend)}
+${metric("RSI",a.rsi.toFixed(1))}
+${metric("Fakeout",a.breakout.fakeout)}
+
+</div>
+
+<div class="mt-4 text-xs text-purple-300">
+${escapeHTML(a.status)}
+</div>
+
+<button
+onclick="openSetup('${item.symbol}','${type}')"
+class="w-full mt-4 py-2.5 rounded-xl bg-purple-700 hover:bg-purple-600 font-bold text-xs">
+View Full Analysis
+</button>
+`;
+
+return div;
+
+}
+
+function openSetup(symbol,type){
+
+selectedSymbol=symbol;
+
+if(type==="SCALP"){
+selectedTF="5m";
+showTab("analysis");
+}
+
+else{
+selectedTF="4h";
+showTab("analysis");
+}
+
+syncControls();
+renderAnalysis();
+
+}
+
+
+/* =========================================================
+LIVE PRICE UI REFRESH
+========================================================= */
+
+function renderEverything(){
+
+renderScanner();
+renderAnalysis();
+renderScalp();
+renderSwing();
+
+if(lastDataTime){
+
+const age=Math.floor((Date.now()-lastDataTime)/1000);
+
+document.getElementById("dataAge").textContent=
+age<5?"Data: LIVE":`Data: ${age}s ago`;
+
+}
+
+}
+
+
+/* =========================================================
+NAVIGATION
+========================================================= */
+
+function showTab(name){
+
+["dashboard","scanner","analysis","scalp","swing"]
+.forEach(x=>{
+
+document.getElementById("page-"+x)
+.classList.toggle("hidden",x!==name);
+
+const b=document.getElementById("tabBtn-"+x);
+
+if(b)
+b.classList.toggle("tabActive",x===name);
+
+});
+
+if(name==="scanner")renderScanner();
+if(name==="analysis")renderAnalysis();
+if(name==="scalp")renderScalp();
+if(name==="swing")renderSwing();
+
+}
+
+
+/* =========================================================
+CONTROLS
+========================================================= */
+
+function buildSymbolSelect(){
+
+const select=document.getElementById("symbolSelect");
+
+select.innerHTML="";
+
+SYMBOLS.forEach(x=>{
+
+const option=document.createElement("option");
+
+option.value=x.symbol;
+
+option.textContent=x.symbol+" — "+x.name;
+
+select.appendChild(option);
+
+});
+
+select.value=selectedSymbol;
+
+}
+
+function changeSymbol(){
+
+selectedSymbol=document.getElementById("symbolSelect").value;
+
+renderAnalysis();
+
+}
+
+function syncControls(){
+
+const s=document.getElementById("symbolSelect");
+
+if(s)s.value=selectedSymbol;
+
+document.querySelectorAll(".tf").forEach(b=>{
+
+b.classList.toggle(
+"activeTF",
+b.dataset.tf===selectedTF
+);
+
+});
+
+}
+
+
+/* =========================================================
+TIMEFRAME BUTTONS
+========================================================= */
+
+document.querySelectorAll(".tf").forEach(btn=>{
+
+btn.addEventListener("click",()=>{
+
+selectedTF=btn.dataset.tf;
+
+document.querySelectorAll(".tf").forEach(x=>
+x.classList.remove("activeTF")
+);
+
+btn.classList.add("activeTF");
+
+Object.keys(TF).forEach(tf=>{
+requestCandles(selectedSymbol,tf);
+});
+
+renderAnalysis();
+
+});
+
+});
+
+
+/* =========================================================
+ACTIVE TIMEFRAME STYLE
+========================================================= */
+
+const style=document.createElement("style");
+
+style.textContent=`
+.tf{
+padding:.65rem 1rem;
+border-radius:.75rem;
+font-size:.75rem;
+font-weight:800;
+background:#190e2e;
+color:#c4b5fd;
+border:1px solid rgba(124,58,237,.25);
+}
+.tf:hover{
+background:#2e1065;
+color:white;
+}
+.activeTF{
+background:#6d28d9!important;
+color:white!important;
+border-color:#8b5cf6!important;
+}
+`;
+
+document.head.appendChild(style);
+
+
+/* =========================================================
+STALE DATA WATCH
+========================================================= */
+
+setInterval(()=>{
+
+if(!lastDataTime)return;
+
+const age=(Date.now()-lastDataTime)/1000;
+
+if(age>30){
+
+setConnection("Data stale — checking connection","error");
+
+}
+
+},5000);
+
+
+/* =========================================================
+INITIALIZE
+========================================================= */
+
+buildSymbolSelect();
+syncControls();
+connect();
+
+</script>
+
 </body>
 </html>
