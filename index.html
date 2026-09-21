@@ -287,7 +287,9 @@ tailwind.config = {
    NO RANDOM PRICES. NO AUTOMATIC TRADING.
 ============================================================ */
 
-const DERIV_WS_URL = "wss://ws.derivws.com/websockets/v3?app_id=1089";
+// Deriv migrated to a new API platform; the old ws.derivws.com/websockets/v3
+// public endpoint is being retired. This is the current public (no-auth) endpoint:
+const DERIV_WS_URL = "wss://api.derivws.com/trading/v1/options/ws/public";
 
 let derivWS = null;
 let reconnectTimer = null;
@@ -345,9 +347,12 @@ function initDerivWebSocket() {
     reconnectAttempts = 0;
     updateWSStatus('connected', 'Deriv Live Feed Connected');
 
-    vixPairs.forEach(p => {
-      sendWSMessage({ ticks: p.symbol });
-      requestCandles(p.symbol, currentTimeframe);
+    vixPairs.forEach((p, i) => {
+      // Stagger requests slightly so we don't fire 24 messages in the same tick
+      setTimeout(() => {
+        sendWSMessage({ ticks: p.symbol, subscribe: 1 }); // subscribe:1 = continuous stream
+        requestCandles(p.symbol, currentTimeframe);
+      }, i * 150);
     });
   };
 
@@ -430,6 +435,7 @@ function requestCandles(symbol, timeframe) {
     end: "latest",
     granularity: granularity,
     style: "candles",
+    subscribe: 0, // one-time historical pull; live updates come from the ticks subscription
     req_id: Date.now()
   });
 }
